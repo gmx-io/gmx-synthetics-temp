@@ -19,51 +19,6 @@ import "../token/TokenUtils.sol";
 import "../swap/SwapUtils.sol";
 import "../nonce/NonceUtils.sol";
 
-/*
-
-1. base case with GelatoRelayContextERC2771
-
-function _abiEncodeCallWithSyncFeeERC2771(
-    CallWithERC2771 calldata _call
-) internal pure returns (bytes memory) {
-    return
-        abi.encode(
-            CALL_WITH_SYNC_FEE_ERC2771_TYPEHASH,
-            _call.chainId,
-            _call.target,
-            keccak256(_call.data),
-            _call.user,
-            _call.userNonce,
-            _call.userDeadline
-        );
-}
-
-UI:
-message = abi.encode(
-    orderParams,
-    nonce
-)
-messageHash = keccak256(message)
-signature = sign(messageHash)
-orderActionCalldata = abi.encode(
-    orderParams,
-    nonce,
-    v,
-    r,
-    s
-)
-
-Contracts:
-orderAction = abi.decode(orderActionCalldata, (bytes, uint256, uint8, bytes32, bytes32))
-message = abi.encode(
-    orderAction,
-    signature
-)
-messageHash = keccak256(message)
-address = erecover(messageHash, v, r, s)
-
-*/
-
 contract GelatoRelayRouter is GelatoRelayContextERC2771, BaseRouter, OracleModule {
     using Order for Order.Props;
 
@@ -173,7 +128,7 @@ contract GelatoRelayRouter is GelatoRelayContextERC2771, BaseRouter, OracleModul
         }
 
         _processPermits(baseParams.permitParams);
-        _processFee(contracts, baseParams.feeParams, key, order.uiFeeReceiver(), account);
+        _processFee(contracts, baseParams.feeParams, account, key, order.uiFeeReceiver(), account);
 
         orderHandler.updateOrder(
             key,
@@ -210,7 +165,7 @@ contract GelatoRelayRouter is GelatoRelayContextERC2771, BaseRouter, OracleModul
         });
 
         _processPermits(baseParams.permitParams);
-        _processFee(contracts, baseParams.feeParams, key, order.uiFeeReceiver(), account);
+        _processFee(contracts, baseParams.feeParams, account, key, order.uiFeeReceiver(), account);
 
         orderHandler.cancelOrder(key);
     }
@@ -255,6 +210,7 @@ contract GelatoRelayRouter is GelatoRelayContextERC2771, BaseRouter, OracleModul
         params.numbers.executionFee = _processFee(
             contracts,
             feeParams,
+            account,
             NonceUtils.getNextKey(contracts.dataStore), // order key
             params.addresses.uiFeeReceiver,
             address(contracts.orderVault)
@@ -275,6 +231,7 @@ contract GelatoRelayRouter is GelatoRelayContextERC2771, BaseRouter, OracleModul
     function _processFee(
         Contracts memory contracts,
         FeeParams calldata feeParams,
+        address account,
         bytes32 orderKey,
         address uiFeeReceiver,
         address residualFeeReceiver
@@ -284,9 +241,6 @@ contract GelatoRelayRouter is GelatoRelayContextERC2771, BaseRouter, OracleModul
         if (_getFeeToken() != wnt) {
             revert Errors.InvalidFeeToken(feeParams.feeToken, wnt);
         }
-
-        // should not use msg.sender directly because Gelato relayer passes it in calldata
-        address account = _getMsgSender();
 
         _sendTokens(account, feeParams.feeToken, address(contracts.orderVault), feeParams.feeAmount);
         uint256 outputAmount = _swapFeeTokens(contracts, wnt, feeParams, orderKey, uiFeeReceiver);
