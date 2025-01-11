@@ -425,4 +425,5 @@ library Errors {
     error InvalidFeeToken(address feeToken, address expectedFeeToken);
     error NotImplemented();
     error InvalidPermitSpender(address spender, address expectedSpender);
+    error InvalidAccount(address recoveredSigner, address expectedSigner);
 }
