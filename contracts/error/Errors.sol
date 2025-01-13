@@ -420,4 +420,9 @@ library Errors {
 
     // Reader errors
     error EmptyMarketPrice(address market);
+
+    // Gelato relay errors
+    error InvalidFeeToken(address feeToken, address expectedFeeToken);
+    error NotImplemented();
+    error InvalidPermitSpender(address spender, address expectedSpender);
 }
