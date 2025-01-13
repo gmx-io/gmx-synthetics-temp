@@ -64,6 +64,8 @@ contract GelatoRelayRouter is GelatoRelayContextERC2771, BaseRouter, OracleModul
         OrderVault orderVault;
     }
 
+    mapping(address => uint256) public userNonces;
+
     constructor(
         Router _router,
         RoleStore _roleStore,
@@ -82,7 +84,7 @@ contract GelatoRelayRouter is GelatoRelayContextERC2771, BaseRouter, OracleModul
     function multicall(bytes[] calldata) external payable virtual override returns (bytes[] memory) {
         // disable multicall for safety
         // https://docs.gelato.network/web3-services/relay/security-considerations/erc-2771-delegatecall-vulnerability#avoid-multicall-in-combination-with-erc-2771
-        revert Errors.NotImplemented();
+        revert Errors.NotSupported();
     }
 
     function createOrderWithSignature(
@@ -90,11 +92,14 @@ contract GelatoRelayRouter is GelatoRelayContextERC2771, BaseRouter, OracleModul
         uint256 collateralAmount,
         IBaseOrderUtils.CreateOrderParams memory params, // can't use calldata because need to modify params.numbers.executionFee
         address account,
-        bytes memory signature
+        uint256 userNonce,
+        uint256 deadline,
+        uint256 sourceChainId,
+        bytes calldata signature
     ) external nonReentrant withOraclePricesForAtomicAction(baseParams.oracleParams) returns (bytes32) {
-        // TODO add custom nonce to protect from replay attacks
+        _validateNonceAndDeadline(account, userNonce, deadline);
         bytes memory message = _getCreateOrderSignatureMessage(baseParams, collateralAmount, params);
-        _validateSignature(message, signature, account);
+        _validateSignature(message, userNonce, deadline, sourceChainId, signature, account);
         return _createOrder(baseParams.permitParams, baseParams.feeParams, collateralAmount, params, account);
     }
 
@@ -102,7 +107,13 @@ contract GelatoRelayRouter is GelatoRelayContextERC2771, BaseRouter, OracleModul
         BaseParams calldata baseParams,
         uint256 collateralAmount,
         IBaseOrderUtils.CreateOrderParams memory params // can't use calldata because need to modify params.numbers.executionFee
-    ) external nonReentrant withOraclePricesForAtomicAction(baseParams.oracleParams) onlyGelatoRelayERC2771 returns (bytes32) {
+    )
+        external
+        nonReentrant
+        withOraclePricesForAtomicAction(baseParams.oracleParams)
+        onlyGelatoRelayERC2771
+        returns (bytes32)
+    {
         // should not use msg.sender directly because Gelato relayer passes it in calldata
         address account = _getMsgSender();
         return _createOrder(baseParams.permitParams, baseParams.feeParams, collateralAmount, params, account);
@@ -176,16 +187,6 @@ contract GelatoRelayRouter is GelatoRelayContextERC2771, BaseRouter, OracleModul
         IBaseOrderUtils.CreateOrderParams memory params
     ) internal pure returns (bytes memory) {
         return abi.encode(baseParams, collateralAmount, params);
-    }
-
-    function _validateSignature(bytes memory message, bytes memory signature, address account) internal pure {
-        bytes32 digest = ECDSA.toEthSignedMessageHash(keccak256(message));
-        address recoveredSigner = ECDSA.recover(digest, signature);
-
-        // TODO at first glance the validation is not even necessary. recovered signer can just be used as account?
-        if (recoveredSigner != account) {
-            revert Errors.InvalidAccount(recoveredSigner, account);
-        }
     }
 
     function _createOrder(
@@ -321,5 +322,55 @@ contract GelatoRelayRouter is GelatoRelayContextERC2771, BaseRouter, OracleModul
     function _sendTokens(address account, address token, address receiver, uint256 amount) internal {
         AccountUtils.validateReceiver(receiver);
         router.pluginTransfer(token, account, receiver, amount);
+    }
+
+    function _validateNonceAndDeadline(address account, uint256 userNonce, uint256 deadline) internal {
+        if (block.timestamp > deadline) {
+            revert Errors.DeadlinePassed(block.timestamp, deadline);
+        }
+
+        uint256 storedUserNonce = userNonces[account];
+        if (storedUserNonce != userNonce) {
+            revert Errors.InvalidUserNonce(storedUserNonce, userNonce);
+        }
+        userNonces[account] = userNonce + 1;
+    }
+
+    function _validateSignature(
+        bytes memory message,
+        uint256 userNonce,
+        uint256 deadline,
+        uint256 sourceChainId,
+        bytes calldata signature,
+        address expectedSigner
+    ) internal view returns (bytes32 digest) {
+        bytes32 domainSeparator = _getDomainSeparator(sourceChainId);
+        digest = keccak256(
+            abi.encodePacked("\x19\x01", domainSeparator, keccak256(abi.encode(message, userNonce, deadline)))
+        );
+
+        (address recovered, ECDSA.RecoverError error) = ECDSA.tryRecover(digest, signature);
+        require(
+            error == ECDSA.RecoverError.NoError && recovered == expectedSigner,
+            "GelatoRelayERC2771Base._validateSignature"
+        );
+    }
+
+    function _getDomainSeparator(uint256 sourceChainId) internal view returns (bytes32) {
+        return
+            keccak256(
+                abi.encode(
+                    keccak256(
+                        bytes(
+                            // solhint-disable-next-line max-line-length
+                            "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
+                        )
+                    ),
+                    keccak256(bytes("GmxGelatoRelayRouter")),
+                    keccak256(bytes("1")),
+                    sourceChainId,
+                    address(this)
+                )
+            );
     }
 }

@@ -423,7 +423,8 @@ library Errors {
 
     // Gelato relay errors
     error InvalidFeeToken(address feeToken, address expectedFeeToken);
-    error NotImplemented();
+    error NotSupported();
     error InvalidPermitSpender(address spender, address expectedSpender);
-    error InvalidAccount(address recoveredSigner, address expectedSigner);
+    error InvalidUserNonce(uint256 storedUserNonce, uint256 userNonce);
+    error DeadlinePassed(uint256 currentTimestamp, uint256 deadline);
 }
