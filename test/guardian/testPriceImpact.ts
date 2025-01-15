@@ -79,10 +79,10 @@ describe("Guardian.PriceImpact", () => {
 
     const initialSizeInTokens = expandDecimals(2, 18);
 
-    // Because we experienced +PI, our size in tokens should be greater than ($10,000 / $5,000)
+    // Experienced +PI, but size in tokens shold remain the same
     const sizeInTokens = longPosition.numbers.sizeInTokens;
-    expect(sizeInTokens).to.be.greaterThan(initialSizeInTokens);
-    expect(sizeInTokens).to.eq("2007599999999999999");
+    expect(sizeInTokens).to.eq(initialSizeInTokens);
+    expect(sizeInTokens).to.eq("2000000000000000000"); // price impact not applied
   });
 
   it("Long position receiving negative price impact", async () => {
@@ -118,10 +118,10 @@ describe("Guardian.PriceImpact", () => {
 
     const initialSizeInTokens = expandDecimals(2, 18);
 
-    // Because we experienced -PI, our size in tokens should be less than ($10,000 / $5,000)
+    // Experienced -PI, but size in tokens should remain the same
     const sizeInTokens = longPosition.numbers.sizeInTokens;
-    expect(sizeInTokens).to.be.lessThan(initialSizeInTokens);
-    expect(sizeInTokens).to.eq("1999600000000000000");
+    expect(sizeInTokens).to.eq(initialSizeInTokens);
+    expect(sizeInTokens).to.eq("2000000000000000000"); // price impact not applied
   });
 
   it("Short position receiving negative price impact", async () => {
@@ -157,10 +157,10 @@ describe("Guardian.PriceImpact", () => {
 
     const initialSizeInTokens = expandDecimals(2, 18);
 
-    // Because we experienced -PI, our size in tokens should be less than ($10,000 / $5,000)
+    // Experienced -PI, but size in tokens should remain the same
     const sizeInTokens = shortPosition.numbers.sizeInTokens;
-    expect(sizeInTokens).to.be.lessThan(initialSizeInTokens);
-    expect(sizeInTokens).to.eq("1999600000000000000");
+    expect(sizeInTokens).to.eq(initialSizeInTokens);
+    expect(sizeInTokens).to.eq("2000000000000000000"); // price impact not applied
   });
 
   it("negative price impact for deposit", async () => {

@@ -87,6 +87,7 @@ library SwapUtils {
         uint256 poolAmountOut;
         int256 priceImpactUsd;
         int256 priceImpactAmount;
+        bool balanceWasImproved;
         uint256 cappedDiffUsd;
         int256 tokenInPriceImpactAmount;
     }
@@ -226,7 +227,7 @@ library SwapUtils {
 
         // note that this may not be entirely accurate since the effect of the
         // swap fees are not accounted for
-        cache.priceImpactUsd = SwapPricingUtils.getPriceImpactUsd(
+        (cache.priceImpactUsd, cache.balanceWasImproved) = SwapPricingUtils.getPriceImpactUsd(
             SwapPricingUtils.GetPriceImpactUsdParams(
                 params.dataStore,
                 _params.market,
@@ -244,7 +245,7 @@ library SwapUtils {
             params.dataStore,
             _params.market.marketToken,
             _params.amountIn,
-            cache.priceImpactUsd > 0, // forPositiveImpact
+            cache.balanceWasImproved,
             params.uiFeeReceiver,
             ISwapPricingUtils.SwapPricingType.Swap
         );

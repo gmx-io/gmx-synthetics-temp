@@ -64,14 +64,14 @@ library PricingUtils {
         uint256 impactFactor,
         uint256 impactExponentFactor
     ) internal pure returns (int256) {
-        bool hasPositiveImpact = nextDiffUsd < initialDiffUsd;
+        bool balanceWasImproved = nextDiffUsd < initialDiffUsd;
 
         uint256 deltaDiffUsd = Calc.diff(
             applyImpactFactor(initialDiffUsd, impactFactor, impactExponentFactor),
             applyImpactFactor(nextDiffUsd, impactFactor, impactExponentFactor)
         );
 
-        int256 priceImpactUsd = Calc.toSigned(deltaDiffUsd, hasPositiveImpact);
+        int256 priceImpactUsd = Calc.toSigned(deltaDiffUsd, balanceWasImproved);
 
         return priceImpactUsd;
     }
@@ -82,7 +82,6 @@ library PricingUtils {
     // short open interest becomes larger than the long open interest
     // @param initialDiffUsd the initial difference in USD
     // @param nextDiffUsd the next difference in USD
-    // @param hasPositiveImpact whether there is a positive impact on balance
     // @param impactFactor the impact factor
     // @param impactExponentFactor the impact exponent factor
     function getPriceImpactUsdForCrossoverRebalance(

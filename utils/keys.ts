@@ -134,6 +134,7 @@ export const MAX_POOL_USD_FOR_DEPOSIT = hashString("MAX_POOL_USD_FOR_DEPOSIT");
 export const MAX_OPEN_INTEREST = hashString("MAX_OPEN_INTEREST");
 
 export const POSITION_IMPACT_POOL_AMOUNT = hashString("POSITION_IMPACT_POOL_AMOUNT");
+export const IMPACT_PENDING_AMOUNT = hashString("IMPACT_PENDING_AMOUNT");
 export const MIN_POSITION_IMPACT_POOL_AMOUNT = hashString("MIN_POSITION_IMPACT_POOL_AMOUNT");
 export const POSITION_IMPACT_POOL_DISTRIBUTION_RATE = hashString("POSITION_IMPACT_POOL_DISTRIBUTION_RATE");
 export const POSITION_IMPACT_POOL_DISTRIBUTED_AT = hashString("POSITION_IMPACT_POOL_DISTRIBUTED_AT");
@@ -255,6 +256,7 @@ export const BUYBACK_GMX_FACTOR = hashString("BUYBACK_GMX_FACTOR");
 export const BUYBACK_MAX_PRICE_IMPACT_FACTOR = hashString("BUYBACK_MAX_PRICE_IMPACT_FACTOR");
 export const BUYBACK_MAX_PRICE_AGE = hashString("BUYBACK_MAX_PRICE_AGE");
 export const WITHDRAWABLE_BUYBACK_TOKEN_AMOUNT = hashString("WITHDRAWABLE_BUYBACK_TOKEN_AMOUNT");
+export const SOURCE_CHAIN_BALANCE = hashString("SOURCE_CHAIN_BALANCE");
 
 export const VALID_FROM_TIME = hashString("VALID_FROM_TIME");
 
@@ -499,16 +501,16 @@ export function swapImpactPoolAmountKey(market: string, token: string) {
   return hashData(["bytes32", "address", "address"], [SWAP_IMPACT_POOL_AMOUNT, market, token]);
 }
 
-export function swapFeeFactorKey(market: string, forPositiveImpact: boolean) {
-  return hashData(["bytes32", "address", "bool"], [SWAP_FEE_FACTOR, market, forPositiveImpact]);
+export function swapFeeFactorKey(market: string, balanceWasImproved: boolean) {
+  return hashData(["bytes32", "address", "bool"], [SWAP_FEE_FACTOR, market, balanceWasImproved]);
 }
 
-export function depositFeeFactorKey(market: string, forPositiveImpact: boolean) {
-  return hashData(["bytes32", "address", "bool"], [DEPOSIT_FEE_FACTOR, market, forPositiveImpact]);
+export function depositFeeFactorKey(market: string, balanceWasImproved: boolean) {
+  return hashData(["bytes32", "address", "bool"], [DEPOSIT_FEE_FACTOR, market, balanceWasImproved]);
 }
 
-export function withdrawalFeeFactorKey(market: string, forPositiveImpact: boolean) {
-  return hashData(["bytes32", "address", "bool"], [WITHDRAWAL_FEE_FACTOR, market, forPositiveImpact]);
+export function withdrawalFeeFactorKey(market: string, balanceWasImproved: boolean) {
+  return hashData(["bytes32", "address", "bool"], [WITHDRAWAL_FEE_FACTOR, market, balanceWasImproved]);
 }
 
 export function atomicSwapFeeFactorKey(market: string) {
@@ -539,8 +541,8 @@ export function maxPositionImpactFactorForLiquidationsKey(market: string) {
   return hashData(["bytes32", "address"], [MAX_POSITION_IMPACT_FACTOR_FOR_LIQUIDATIONS, market]);
 }
 
-export function positionFeeFactorKey(market: string, forPositiveImpact: boolean) {
-  return hashData(["bytes32", "address", "bool"], [POSITION_FEE_FACTOR, market, forPositiveImpact]);
+export function positionFeeFactorKey(market: string, balanceWasImproved: boolean) {
+  return hashData(["bytes32", "address", "bool"], [POSITION_FEE_FACTOR, market, balanceWasImproved]);
 }
 
 export function proTraderTierKey(account: string) {
@@ -789,4 +791,8 @@ export function buybackMaxPriceImpactFactorKey(token: string) {
 
 export function withdrawableBuybackTokenAmountKey(buybackToken: string) {
   return hashData(["bytes32", "address"], [WITHDRAWABLE_BUYBACK_TOKEN_AMOUNT, buybackToken]);
+}
+
+export function sourceChainBalanceKey(virtualAccount: string, token: string) {
+  return hashData(["bytes32", "address", "address"], [SOURCE_CHAIN_BALANCE, virtualAccount, token]);
 }

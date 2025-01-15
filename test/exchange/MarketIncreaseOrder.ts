@@ -258,7 +258,7 @@ describe("Exchange.MarketIncreaseOrder", () => {
 
     await handleOrder(fixture, { create: params });
 
-    expect((await provider.getBalance(user1.address)).sub(initialBalance)).closeTo("206999985656000", "10000000000000");
+    expect((await provider.getBalance(user1.address)).sub(initialBalance)).closeTo("244862985958904", "10000000000000");
   });
 
   it("refund execution fee callback", async () => {
@@ -290,7 +290,7 @@ describe("Exchange.MarketIncreaseOrder", () => {
 
     expect((await provider.getBalance(user1.address)).sub(initialBalance)).eq(0);
 
-    expect(await provider.getBalance(mockCallbackReceiver.address)).closeTo("187324985498600", "10000000000000");
+    expect(await provider.getBalance(mockCallbackReceiver.address)).closeTo("225186985801496", "10000000000000");
   });
 
   it("validates reserve", async () => {
@@ -391,7 +391,13 @@ describe("Exchange.MarketIncreaseOrder", () => {
     await dataStore.setUint(keys.positionImpactFactorKey(ethUsdMarket.marketToken, false), decimalToFloat(5, 7));
 
     await handleOrder(fixture, {
-      create: { ...params, initialCollateralDeltaAmount: 0, minOutputAmount: 0, account: user0 },
+      create: {
+        ...params,
+        orderType: OrderType.MarketDecrease,
+        initialCollateralDeltaAmount: expandDecimals(800, 6),
+        sizeDeltaUsd: decimalToFloat(1 * 1000),
+        acceptablePrice: expandDecimals(5000, 12),
+      },
       execute: {
         expectedCancellationReason: "LiquidatablePosition",
       },

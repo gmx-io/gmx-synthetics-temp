@@ -35,6 +35,11 @@ library ReaderDepositUtils {
         ISwapPricingUtils.SwapPricingType swapPricingType;
     }
 
+    struct GetDepositAmountOutCache {
+        int256 priceImpactUsd;
+        bool balanceWasImproved;
+    }
+
     function getDepositAmountOut(
         DataStore dataStore,
         Market.Props memory market,
@@ -47,7 +52,8 @@ library ReaderDepositUtils {
     ) external view returns (uint256) {
         uint256 longTokenUsd = longTokenAmount * prices.longTokenPrice.midPrice();
         uint256 shortTokenUsd = shortTokenAmount * prices.shortTokenPrice.midPrice();
-        int256 priceImpactUsd = SwapPricingUtils.getPriceImpactUsd(
+        GetDepositAmountOutCache memory cache;
+        (cache.priceImpactUsd, cache.balanceWasImproved) = SwapPricingUtils.getPriceImpactUsd(
             SwapPricingUtils.GetPriceImpactUsdParams(
                 dataStore,
                 market,
@@ -73,10 +79,11 @@ library ReaderDepositUtils {
                 market.shortToken,
                 prices.shortTokenPrice,
                 longTokenAmount,
-                Precision.mulDiv(priceImpactUsd, longTokenUsd, longTokenUsd + shortTokenUsd),
+                Precision.mulDiv(cache.priceImpactUsd, longTokenUsd, longTokenUsd + shortTokenUsd),
                 uiFeeReceiver,
                 swapPricingType
-            )
+            ),
+            cache.balanceWasImproved
         );
 
         mintAmount += getDepositAmountOutForSingleToken(
@@ -89,23 +96,25 @@ library ReaderDepositUtils {
                 market.longToken,
                 prices.longTokenPrice,
                 shortTokenAmount,
-                Precision.mulDiv(priceImpactUsd, shortTokenUsd, longTokenUsd + shortTokenUsd),
+                Precision.mulDiv(cache.priceImpactUsd, shortTokenUsd, longTokenUsd + shortTokenUsd),
                 uiFeeReceiver,
                 swapPricingType
-            )
+            ),
+            cache.balanceWasImproved
         );
 
         return mintAmount;
     }
 
     function getDepositAmountOutForSingleToken(
-        GetDepositAmountOutForSingleTokenParams memory params
+        GetDepositAmountOutForSingleTokenParams memory params,
+        bool balanceWasImproved
     ) public view returns (uint256) {
         SwapPricingUtils.SwapFees memory fees = SwapPricingUtils.getSwapFees(
             params.dataStore,
             params.market.marketToken,
             params.amount,
-            params.priceImpactUsd > 0, // forPositiveImpact
+            balanceWasImproved, // balanceWasImproved
             params.uiFeeReceiver, // uiFeeReceiver
             params.swapPricingType
         );

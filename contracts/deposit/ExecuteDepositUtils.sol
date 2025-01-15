@@ -90,6 +90,7 @@ library ExecuteDepositUtils {
         uint256 shortTokenUsd;
         uint256 receivedMarketTokens;
         int256 priceImpactUsd;
+        bool balanceWasImproved;
         uint256 marketTokensSupply;
         EventUtils.EventLogData callbackEventData;
     }
@@ -188,7 +189,7 @@ library ExecuteDepositUtils {
         cache.longTokenUsd = cache.longTokenAmount * cache.prices.longTokenPrice.midPrice();
         cache.shortTokenUsd = cache.shortTokenAmount * cache.prices.shortTokenPrice.midPrice();
 
-        cache.priceImpactUsd = SwapPricingUtils.getPriceImpactUsd(
+        (cache.priceImpactUsd, cache.balanceWasImproved) = SwapPricingUtils.getPriceImpactUsd(
             SwapPricingUtils.GetPriceImpactUsdParams(
                 params.dataStore,
                 cache.market,
@@ -216,7 +217,7 @@ library ExecuteDepositUtils {
                 Precision.mulDiv(cache.priceImpactUsd, cache.longTokenUsd, cache.longTokenUsd + cache.shortTokenUsd)
             );
 
-            cache.receivedMarketTokens += _executeDeposit(params, _params);
+            cache.receivedMarketTokens += _executeDeposit(params, _params, cache.balanceWasImproved);
         }
 
         if (cache.shortTokenAmount > 0) {
@@ -233,7 +234,7 @@ library ExecuteDepositUtils {
                 Precision.mulDiv(cache.priceImpactUsd, cache.shortTokenUsd, cache.longTokenUsd + cache.shortTokenUsd)
             );
 
-            cache.receivedMarketTokens += _executeDeposit(params, _params);
+            cache.receivedMarketTokens += _executeDeposit(params, _params, cache.balanceWasImproved);
         }
 
         if (cache.receivedMarketTokens < deposit.minMarketTokens()) {
@@ -298,14 +299,14 @@ library ExecuteDepositUtils {
     // @dev executes a deposit
     // @param params ExecuteDepositParams
     // @param _params _ExecuteDepositParams
-    function _executeDeposit(ExecuteDepositParams memory params, _ExecuteDepositParams memory _params) internal returns (uint256) {
+    function _executeDeposit(ExecuteDepositParams memory params, _ExecuteDepositParams memory _params, bool balanceWasImproved) internal returns (uint256) {
         // for markets where longToken == shortToken, the price impact factor should be set to zero
         // in which case, the priceImpactUsd would always equal zero
         SwapPricingUtils.SwapFees memory fees = SwapPricingUtils.getSwapFees(
             params.dataStore,
             _params.market.marketToken,
             _params.amount,
-            _params.priceImpactUsd > 0, // forPositiveImpact
+            balanceWasImproved,
             _params.uiFeeReceiver,
             params.swapPricingType
         );
