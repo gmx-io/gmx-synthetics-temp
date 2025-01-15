@@ -420,4 +420,16 @@ library Errors {
 
     // Reader errors
     error EmptyMarketPrice(address market);
+
+    // MultichainReader errors
+    error NotEnoughNative(uint256 msgValue);
+    error LzTokenUnavailable();
+    error OnlyEndpoint(address addr);
+    error ConfirmationsLengthMismatch(uint256 chainIdsLength, uint256 confirmationsLength);
+    error UnauthorizedOriginator(address originator);
+    error OriginatorCallFailed(bytes transactionCallData);
+    error OnlyPeer(uint32 eid, bytes32 sender);
+    error NoPeer(uint32 eid);
+    error InvalidEndpointCall();
+    error InvalidDelegate();
 }

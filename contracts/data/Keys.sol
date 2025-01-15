@@ -467,6 +467,17 @@ library Keys {
     // @dev key for the buyback withdrawable fees
     bytes32 public constant WITHDRAWABLE_BUYBACK_TOKEN_AMOUNT = keccak256(abi.encode("WITHDRAWABLE_BUYBACK_TOKEN_AMOUNT"));
 
+    // @dev key for MultichainReader read channel
+    bytes32 public constant MULTICHAIN_READ_CHANNEL = keccak256(abi.encode("MULTICHAIN_READ_CHANNEL"));
+    // @dev key for MultichainReader read channel to peer mapping
+    bytes32 public constant MULTICHAIN_PEERS = keccak256(abi.encode("MULTICHAIN_PEERS"));
+    // @dev key for MultichainReader number of confirmations to wait for finality
+    bytes32 public constant MULTICHAIN_CONFIRMATIONS = keccak256(abi.encode("MULTICHAIN_CONFIRMATIONS"));
+    // @dev key for MultichainReader guid to originator mapping
+    bytes32 public constant MULTICHAIN_GUID_TO_ORIGINATOR = keccak256(abi.encode("MULTICHAIN_GUID_TO_ORIGINATOR"));
+    // @dev key for MultichainReader authorized orginators
+    bytes32 public constant MULTICHAIN_AUTHORIZED_ORIGINATORS = keccak256(abi.encode("MULTICHAIN_AUTHORIZED_ORIGINATORS"));
+
     // @dev constant for user initiated cancel reason
     string public constant USER_INITIATED_CANCEL = "USER_INITIATED_CANCEL";
 
@@ -2075,5 +2086,33 @@ library Keys {
             BUYBACK_MAX_PRICE_IMPACT_FACTOR,
             token
         ));
+    }
+
+    // @dev key for the multichain peers mapping (peer address stored as bytes32)
+    // @param readChannel the readChannel for which to retrieve the respective peer
+    // @return key for multichain peers
+    function multichainPeersKey(uint32 readChannel) internal pure returns (bytes32) {
+        return keccak256(abi.encode(MULTICHAIN_PEERS, readChannel));
+    }
+
+    // @dev key for the multichain number of confirmations
+    // @param chainId the chainId for which to retrieve the number of confirmations
+    // @return key for multichain confirmations
+    function multichainConfirmationsKey(uint32 chainId) internal pure returns (bytes32) {
+        return keccak256(abi.encode(MULTICHAIN_PEERS, chainId));
+    }
+
+    // @dev key for the multichain guid to originator mapping
+    // @param guid the guid for which to retrieve the originator address
+    // @return key for multichain guid to originator
+    function multichainGuidToOriginatorKey(bytes32 guid) internal pure returns (bytes32) {
+        return keccak256(abi.encode(MULTICHAIN_GUID_TO_ORIGINATOR, guid));
+    }
+
+    // @dev key for the multichain authorized originators
+    // @param originator the originator address to validate if authorized
+    // @return key for multichain authorized originator
+    function multichainAuthorizedOriginatorsKey(address originator) internal pure returns (bytes32) {
+        return keccak256(abi.encode(MULTICHAIN_AUTHORIZED_ORIGINATORS, originator));
     }
 }
