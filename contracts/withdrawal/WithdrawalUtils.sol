@@ -83,7 +83,7 @@ library WithdrawalUtils {
         uint256 wntAmount = withdrawalVault.recordTransferIn(wnt);
 
         if (wntAmount < params.executionFee) {
-            revert Errors.InsufficientWntAmount(wntAmount, params.executionFee);
+            revert Errors.InsufficientWntAmountForExecutionFee(wntAmount, params.executionFee);
         }
 
         AccountUtils.validateReceiver(params.receiver);

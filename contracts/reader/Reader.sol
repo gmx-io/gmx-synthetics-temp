@@ -163,7 +163,7 @@ contract Reader {
         address account,
         uint256 start,
         uint256 end
-    ) external view returns (Order.Props[] memory) {
+    ) external view returns (ReaderUtils.OrderInfo[] memory) {
         return ReaderUtils.getAccountOrders(dataStore, account, start, end);
     }
 

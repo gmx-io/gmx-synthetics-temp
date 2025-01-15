@@ -17,6 +17,7 @@ library ReaderPositionUtils {
     using SafeCast for uint256;
 
     struct PositionInfo {
+        bytes32 positionKey;
         Position.Props position;
         PositionPricingUtils.PositionFees fees;
         ReaderPricingUtils.ExecutionPriceResult executionPriceResult;
@@ -76,6 +77,7 @@ library ReaderPositionUtils {
                 uiFeeReceiver,
                 true // usePositionSizeAsSizeDeltaUsd
             );
+            positionInfoList[i].positionKey = positionKey;
         }
 
         return positionInfoList;
@@ -106,6 +108,7 @@ library ReaderPositionUtils {
                 uiFeeReceiver,
                 true // usePositionSizeAsSizeDeltaUsd
             );
+            positionInfoList[i].positionKey = positionKey;
         }
 
         return positionInfoList;

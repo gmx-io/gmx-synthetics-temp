@@ -506,15 +506,7 @@ library MarketUtils {
         uint256 maxReservedUsd = Precision.applyFactor(poolUsd, reserveFactor);
         uint256 reserveUsageFactor = Precision.toFactor(reservedUsd, maxReservedUsd);
 
-        if (dataStore.getBool(Keys.IGNORE_OPEN_INTEREST_FOR_USAGE_FACTOR)) {
-            return reserveUsageFactor;
-        }
-
-        uint256 maxOpenInterest = getMaxOpenInterest(dataStore, market.marketToken, isLong);
-        uint256 openInterest = getOpenInterest(dataStore, market, isLong);
-        uint256 openInterestUsageFactor = Precision.toFactor(openInterest, maxOpenInterest);
-
-        return reserveUsageFactor > openInterestUsageFactor ? reserveUsageFactor : openInterestUsageFactor;
+        return reserveUsageFactor;
     }
 
     // @dev get the max open interest allowed for the market

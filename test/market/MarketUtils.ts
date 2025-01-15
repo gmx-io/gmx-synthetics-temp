@@ -27,7 +27,7 @@ describe("MarketUtils", () => {
     });
   });
 
-  it("getUsageFactor doesn't account for open interest if IGNORE_OPEN_INTEREST_FOR_USAGE_FACTOR is set", async () => {
+  it("getUsageFactor doesn't account for open interest", async () => {
     await handleOrder(fixture, {
       create: {
         account: user0,
@@ -64,7 +64,6 @@ describe("MarketUtils", () => {
     const openInterest = await dataStore.getUint(keys.openInterestKey(ethUsdMarket.marketToken, wnt.address, true));
     let maxOpenInterest = await dataStore.getUint(keys.maxOpenInterestKey(ethUsdMarket.marketToken, true));
 
-    expect(await dataStore.getBool(keys.IGNORE_OPEN_INTEREST_FOR_USAGE_FACTOR)).eq(false);
     expect(usageFactor).eq(percentageToFloat("8%"));
     expect(openInterest).eq(decimalToFloat(200_000));
     expect(maxOpenInterest).eq(decimalToFloat(1_000_000_000));
@@ -73,10 +72,8 @@ describe("MarketUtils", () => {
 
     usageFactor = await marketUtilsTest.getUsageFactor(dataStore.address, ethUsdMarket, true, reservedUsd, poolUsd);
     maxOpenInterest = await dataStore.getUint(keys.maxOpenInterestKey(ethUsdMarket.marketToken, true));
-    expect(usageFactor).eq(percentageToFloat("50%"));
+    expect(usageFactor).eq(percentageToFloat("8%"));
     expect(maxOpenInterest).eq(decimalToFloat(400_000));
-
-    await dataStore.setBool(keys.IGNORE_OPEN_INTEREST_FOR_USAGE_FACTOR, true);
 
     usageFactor = await marketUtilsTest.getUsageFactor(dataStore.address, ethUsdMarket, true, reservedUsd, poolUsd);
     maxOpenInterest = await dataStore.getUint(keys.maxOpenInterestKey(ethUsdMarket.marketToken, true));

@@ -154,6 +154,7 @@ library Errors {
     error InsufficientExecutionGas(uint256 startingGas, uint256 estimatedGasLimit, uint256 minAdditionalGasForExecution);
     error InsufficientHandleExecutionErrorGas(uint256 gas, uint256 minHandleExecutionErrorGas);
     error InsufficientGasForCancellation(uint256 gas, uint256 minHandleExecutionErrorGas);
+    error InsufficientGasForAutoCancellation(uint256 gas, uint256 minHandleExecutionErrorGas);
 
     // MarketFactory errors
     error MarketAlreadyExists(bytes32 salt, address existingMarketAddress);
@@ -246,12 +247,13 @@ library Errors {
 
     error EmptyPrimaryPrice(address token);
 
-    error OracleTimestampsAreSmallerThanRequired(uint256 minOracleTimestamp, uint256 expectedTimestamp);
+    error OracleTimestampsAreSmallerThanRequired(address market, uint256 minOracleTimestamp, uint256 expectedTimestamp);
     error OracleTimestampsAreLargerThanRequestExpirationTime(uint256 maxOracleTimestamp, uint256 requestTimestamp, uint256 requestExpirationTime);
 
     // BaseOrderUtils errors
     error EmptyOrder();
     error UnsupportedOrderType(uint256 orderType);
+    error UnsupportedOrderTypeForAutoCancellation(uint256 orderType);
     error InvalidOrderPrices(
         uint256 primaryPriceMin,
         uint256 primaryPriceMax,
@@ -401,7 +403,6 @@ library Errors {
     error MinLongTokens(uint256 received, uint256 expected);
     error MinShortTokens(uint256 received, uint256 expected);
     error InsufficientMarketTokens(uint256 balance, uint256 expected);
-    error InsufficientWntAmount(uint256 wntAmount, uint256 executionFee);
     error InvalidPoolValueForWithdrawal(int256 poolValue);
 
     // Uint256Mask errors

@@ -88,7 +88,7 @@ library ShiftUtils {
         uint256 wntAmount = shiftVault.recordTransferIn(wnt);
 
         if (wntAmount < params.executionFee) {
-            revert Errors.InsufficientWntAmount(wntAmount, params.executionFee);
+            revert Errors.InsufficientWntAmountForExecutionFee(wntAmount, params.executionFee);
         }
 
         AccountUtils.validateReceiver(params.receiver);

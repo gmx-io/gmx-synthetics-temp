@@ -93,7 +93,7 @@ library AdlUtils {
         uint256 latestAdlTime = getLatestAdlTime(dataStore, market, isLong);
 
         if (oracle.maxTimestamp() < latestAdlTime) {
-            revert Errors.OracleTimestampsAreSmallerThanRequired(oracle.maxTimestamp(), latestAdlTime);
+            revert Errors.OracleTimestampsAreSmallerThanRequired(market, oracle.maxTimestamp(), latestAdlTime);
         }
 
         Market.Props memory _market = MarketUtils.getEnabledMarket(dataStore, market);
@@ -219,7 +219,7 @@ library AdlUtils {
 
         uint256 latestAdlTime = AdlUtils.getLatestAdlTime(dataStore, market, isLong);
         if (oracle.maxTimestamp() < latestAdlTime) {
-            revert Errors.OracleTimestampsAreSmallerThanRequired(oracle.maxTimestamp(), latestAdlTime);
+            revert Errors.OracleTimestampsAreSmallerThanRequired(market, oracle.maxTimestamp(), latestAdlTime);
         }
     }
 

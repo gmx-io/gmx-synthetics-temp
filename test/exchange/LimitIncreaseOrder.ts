@@ -195,7 +195,7 @@ describe("Exchange.LimitIncreaseOrder", () => {
       })
     )
       .to.be.revertedWithCustomError(errorsContract, "OracleTimestampsAreSmallerThanRequired")
-      .withArgs(validFromTime - 1, validFromTime);
+      .withArgs(ethUsdMarket.marketToken, validFromTime - 1, validFromTime);
 
     await executeOrder(fixture, {
       oracleTimestamps: [validFromTime, validFromTime],
