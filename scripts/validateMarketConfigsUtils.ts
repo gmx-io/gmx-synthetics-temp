@@ -1,4 +1,3 @@
-import hre from "hardhat";
 import { decimalToFloat, exponentToFloat, bigNumberify, formatAmount, pow, FLOAT_PRECISION } from "../utils/math";
 import { createMarketConfigByKey, getMarketKey } from "../utils/market";
 import { performMulticall } from "../utils/multicall";
@@ -120,6 +119,12 @@ const recommendedMarketConfig = {
       expectedSwapImpactRatio: 20_000,
       expectedPositionImpactRatio: 20_000,
     },
+    "SOL:SOL:SOL": {
+      negativePositionImpactFactor: exponentToFloat("1.35e-09"),
+      negativeSwapImpactFactor: 0,
+      expectedSwapImpactRatio: 10_000,
+      expectedPositionImpactRatio: 20_000,
+    },
     STX: {
       negativePositionImpactFactor: exponentToFloat("5e-10"),
       negativeSwapImpactFactor: exponentToFloat("5e-9"),
@@ -178,6 +183,12 @@ const recommendedMarketConfig = {
       negativePositionImpactFactor: exponentToFloat("5e-10"),
       negativeSwapImpactFactor: exponentToFloat("8e-9"),
       expectedSwapImpactRatio: 20_000,
+      expectedPositionImpactRatio: 20_000,
+    },
+    "GMX:GMX:GMX": {
+      negativePositionImpactFactor: exponentToFloat("5e-10"),
+      negativeSwapImpactFactor: 0,
+      expectedSwapImpactRatio: 10_000,
       expectedPositionImpactRatio: 20_000,
     },
     PEPE: {
@@ -239,6 +250,77 @@ const recommendedMarketConfig = {
     },
     TON: {
       negativePositionImpactFactor: exponentToFloat("5e-10"),
+      expectedSwapImpactRatio: 20_000,
+      expectedPositionImpactRatio: 20_000,
+    },
+    PENDLE: {
+      negativePositionImpactFactor: exponentToFloat("5e-10"),
+      negativeSwapImpactFactor: exponentToFloat("5e-9"),
+      expectedSwapImpactRatio: 20_000,
+      expectedPositionImpactRatio: 20_000,
+    },
+    BOME: {
+      negativePositionImpactFactor: exponentToFloat("5e-10"),
+      expectedSwapImpactRatio: 20_000,
+      expectedPositionImpactRatio: 20_000,
+    },
+    MEME: {
+      negativePositionImpactFactor: exponentToFloat("5e-10"),
+      expectedSwapImpactRatio: 20_000,
+      expectedPositionImpactRatio: 20_000,
+    },
+    FLOKI: {
+      negativePositionImpactFactor: exponentToFloat("5e-10"),
+      expectedSwapImpactRatio: 20_000,
+      expectedPositionImpactRatio: 20_000,
+    },
+    MEW: {
+      negativePositionImpactFactor: exponentToFloat("5e-10"),
+      expectedSwapImpactRatio: 20_000,
+      expectedPositionImpactRatio: 20_000,
+    },
+    ADA: {
+      negativePositionImpactFactor: exponentToFloat("5e-10"),
+      expectedSwapImpactRatio: 20_000,
+      expectedPositionImpactRatio: 20_000,
+    },
+    XLM: {
+      negativePositionImpactFactor: exponentToFloat("5e-10"),
+      expectedSwapImpactRatio: 20_000,
+      expectedPositionImpactRatio: 20_000,
+    },
+    BCH: {
+      negativePositionImpactFactor: exponentToFloat("2.5e-9"),
+      expectedSwapImpactRatio: 20_000,
+      expectedPositionImpactRatio: 20_000,
+    },
+    DOT: {
+      negativePositionImpactFactor: exponentToFloat("2.5e-9"),
+      expectedSwapImpactRatio: 20_000,
+      expectedPositionImpactRatio: 20_000,
+    },
+    ICP: {
+      negativePositionImpactFactor: exponentToFloat("2.5e-9"),
+      expectedSwapImpactRatio: 20_000,
+      expectedPositionImpactRatio: 20_000,
+    },
+    RENDER: {
+      negativePositionImpactFactor: exponentToFloat("2.5e-9"),
+      expectedSwapImpactRatio: 20_000,
+      expectedPositionImpactRatio: 20_000,
+    },
+    FIL: {
+      negativePositionImpactFactor: exponentToFloat("5e-10"),
+      expectedSwapImpactRatio: 20_000,
+      expectedPositionImpactRatio: 20_000,
+    },
+    INJ: {
+      negativePositionImpactFactor: exponentToFloat("9e-9"),
+      expectedSwapImpactRatio: 20_000,
+      expectedPositionImpactRatio: 20_000,
+    },
+    DYDX: {
+      negativePositionImpactFactor: exponentToFloat("9e-9"),
       expectedSwapImpactRatio: 20_000,
       expectedPositionImpactRatio: 20_000,
     },
@@ -311,8 +393,13 @@ function getTradeSizeForImpact({ priceImpactBps, impactExponentFactor, impactFac
   const exponent = 1 / (impactExponentFactor.div(decimalToFloat(1, 2)).toNumber() / 100 - 1);
   const base = bigNumberify(priceImpactBps).mul(decimalToFloat(1)).div(10_000).div(impactFactor).toNumber();
 
-  const tradeSize = Math.pow(base, exponent).toFixed(0);
-  return tradeSize;
+  const tradeSize = Math.pow(base, exponent);
+
+  if (tradeSize === Infinity) {
+    return 0;
+  }
+
+  return tradeSize.toFixed(0);
 }
 
 async function validatePerpConfig({
@@ -522,6 +609,11 @@ async function validatePerpConfig({
   if (negativePositionImpactFactor.gt(0) && positivePositionImpactFactor.gt(0)) {
     const impactRatio = negativePositionImpactFactor.mul(BASIS_POINTS_DIVISOR).div(positivePositionImpactFactor);
     if (impactRatio.lt(recommendedPerpConfig.expectedPositionImpactRatio)) {
+      console.error(
+        "invalid position impact factors ratio is %s expected ratio %s",
+        impactRatio,
+        recommendedPerpConfig.expectedPositionImpactRatio
+      );
       throw new Error(`Invalid position impact factors for ${marketLabel}`);
     }
   }

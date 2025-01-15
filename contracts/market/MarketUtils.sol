@@ -2573,9 +2573,10 @@ library MarketUtils {
     // @dev get the total borrowing value
     // the total borrowing value is the sum of position.borrowingFactor * position.size / (10 ^ 30)
     // for all positions of the market
-    // if borrowing APR is 1000% for 100 years, the cumulativeBorrowingFactor could be as high as 100 * 1000 * (10 ** 30)
+    // if borrowing APR is 1000% for 100 years, the cumulativeBorrowingFactor could be as high as 100 * 10 * (10 ** 30)
+    // (100% is 10 ** 30 so 1000% is 10 * (10 ** 30))
     // since position.size is a USD value with 30 decimals, under this scenario, there may be overflow issues
-    // if open interest exceeds (2 ** 256) / (10 ** 30) / (100 * 1000 * (10 ** 30)) => 1,157,920,900,000 USD
+    // if open interest exceeds (2 ** 256) / (10 ** 30) / (100 * 10 * (10 ** 30)) => 115,792,090,000,000 USD
     // @param dataStore DataStore
     // @param market the market to check
     // @param isLong whether to check the long or short side

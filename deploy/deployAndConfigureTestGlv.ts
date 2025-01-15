@@ -74,5 +74,5 @@ func.skip = async ({ network }) => {
 };
 func.runAtTheEnd = true;
 func.tags = ["Glv"];
-func.dependencies = ["GlvFactory", "Tokens", "DataStore", "Roles"];
+func.dependencies = ["GlvFactory", "Tokens", "DataStore", "Roles", "Markets"];
 export default func;

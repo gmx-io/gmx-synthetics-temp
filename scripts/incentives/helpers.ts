@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 
+import prompts from "prompts";
 import { ethers } from "ethers";
 import hre from "hardhat";
 import { bigNumberify, expandDecimals, formatAmount } from "../../utils/math";
@@ -443,18 +444,40 @@ export function saveDistribution(
   console.log("csv data saved to %s", filename3);
 }
 
-export function processArgs(incentivesType?: IncentivesType) {
+const getLatestWednesday = () => {
+  const date = new Date();
+  const day = date.getDay();
+  const diff = date.getDate() - day + (day === 0 ? -4 : 3);
+  const ret = new Date(date.setDate(diff));
+  ret.setUTCHours(0, 0, 0, 0);
+  return ret;
+};
+
+export async function processArgs(incentivesType?: IncentivesType) {
   if (!["arbitrum", "avalanche"].includes(hre.network.name)) {
     throw new Error("Unsupported network");
   }
 
-  if (!process.env.DISTRIBUTION_TYPE_ID) {
-    throw new Error("DISTRIBUTION_TYPE_ID is required");
-  }
-
   const chainId = getChainId();
 
-  const distributionTypeId = Number(process.env.DISTRIBUTION_TYPE_ID);
+  let distributionTypeId: number;
+
+  if (process.env.DISTRIBUTION_TYPE_ID) {
+    distributionTypeId = Number(process.env.DISTRIBUTION_TYPE_ID);
+  } else {
+    ({ distributionTypeId } = await prompts({
+      type: "select",
+      name: "distributionTypeId",
+      message: "Enter the distribution type",
+      choices: Object.entries(distributionTypes[chainId])
+        .filter(([, { incentivesType: _type }]) => _type === incentivesType)
+        .map(([id, { name }]) => ({
+          title: `${id}: ${name}`,
+          value: Number(id),
+        })),
+    }));
+  }
+
   const knownDistributionTypeIds = new Set(Object.keys(distributionTypes[chainId]).map((id) => Number(id)));
   if (!knownDistributionTypeIds.has(distributionTypeId)) {
     throw new Error(
@@ -473,13 +496,29 @@ export function processArgs(incentivesType?: IncentivesType) {
     throw new Error("Incentives type don't match");
   }
 
-  if (!process.env.FROM_DATE) {
-    throw new Error("FROM_DATE is required");
+  let fromDate: Date;
+  if (process.env.FROM_DATE) {
+    fromDate = new Date(process.env.FROM_DATE);
+  } else {
+    const latestWednesday = getLatestWednesday();
+    const previousWednesday = new Date(latestWednesday.getTime() - 1000 * 86400 * 7);
+    ({ fromDate } = await prompts({
+      type: "select",
+      name: "fromDate",
+      message: "Enter the start of epoch",
+      choices: [
+        { title: `${latestWednesday.toISOString().substring(0, 10)} (current epoch)`, value: latestWednesday },
+        { title: `${previousWednesday.toISOString().substring(0, 10)} (previous epoch)`, value: previousWednesday },
+      ],
+      initial: 1,
+    }));
   }
 
-  const fromDate = new Date(process.env.FROM_DATE);
   if (fromDate.getDay() !== 3) {
     throw Error(`FROM_DATE should be Wednesday: ${fromDate.getDay()}`);
+  }
+  if (fromDate.getUTCHours() !== 0 || fromDate.getUTCMinutes() !== 0 || fromDate.getUTCSeconds() !== 0) {
+    throw Error(`FROM_DATE should be at 00:00:00 UTC: ${fromDate.toISOString().substring(0, 19)}`);
   }
 
   const fromTimestamp = Math.floor(+fromDate / 1000);

@@ -646,16 +646,22 @@ After the initial setup:
 
 - GM tokens could become illiquid due to high pnl factor or high reserved usd. Users can deposit illiquid GM tokens into GVL and withdraw liquidity from a different market, leaving the GLV with illiquid tokens. The glvMaxMarketTokenBalanceUsd and glvMaxMarketTokenBalanceAmount parameters should account for the riskiness of a market to avoid having too many GM tokens from a risky market.
 
-## Other
+## Factories
 
 - Upon adding a Market with the MarketStoreUtils.set function, the Market is given a lookup where the Market address can be obtained with the Market salt. This lookup is not cleared upon market deletion. The same applies to GLV.
 
-## Deployment Notes
+# Notes
+
+## Deployment
 
 - `scripts/verifyFallback.ts` can be used to verify contracts
 - One MarketToken contract would need to be verified using `npx hardhat verify`, thereafter all MarketToken contracts should be verified as the source code would be the same
 
-## Upgrade Notes
+## Configuration
+
+- The `MAX_ORACLE_REF_PRICE_DEVIATION_FACTOR` is used mainly as a sanity check to help guard against incorrect oracle decimal configuration or incorrect price feed configuration, this should be set to a sufficiently high value to prevent reverts during times of high volatility
+
+## Upgrades
 
 - If new contracts are added that may lead to a difference in pricing, e.g. of market tokens between the old and new contracts, then care should be taken to disable the old contracts before the new contracts are enabled
 
@@ -675,7 +681,7 @@ After the initial setup:
 
 - If the referral system is being used, the OrderHandler should be given access to update the referral code for traders
 
-## Integration Notes
+## Integrations
 
 - Deposits, withdrawals and orders may be cancelled if the requirements specified in the request cannot be fulfilled, e.g. min amount out. Do check where funds and gas refunds will be sent to on cancellation to ensure it matches expectations.
 
@@ -739,7 +745,7 @@ After the initial setup:
 
 - Fee rates change depending on whether there is a positive or negative impact
 
-### Deposit Notes
+### Deposits
 
 - Consider PnL Factor when estimating GM price
 
@@ -761,7 +767,7 @@ After the initial setup:
 
 - The first deposit in any market must go to the RECEIVER_FOR_FIRST_DEPOSIT
 
-### Withdrawal Notes
+### Withdrawals
 
 - Two minimum outputs must be used for withdrawals
 
@@ -781,7 +787,7 @@ After the initial setup:
 
 - Withdrawals are not allowed above the MAX_PNL_FACTOR_FOR_WITHDRAWALS
 
-### Order Notes
+### Orders
 
 - Handle order cancellations
 

@@ -65,8 +65,8 @@ contract ConfigSyncer is ReentrancyGuard, RoleModule {
                 revert Errors.SyncConfigUpdatesDisabledForMarket(market);
             }
 
-            bool syncConfigparameterDisabled = dataStore.getBool(Keys.syncConfigParameterDisabledKey(parameter));
-            if (syncConfigparameterDisabled) {
+            bool syncConfigParameterDisabled = dataStore.getBool(Keys.syncConfigParameterDisabledKey(parameter));
+            if (syncConfigParameterDisabled) {
                 revert Errors.SyncConfigUpdatesDisabledForParameter(parameter);
             }
 

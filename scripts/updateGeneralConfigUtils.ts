@@ -1,5 +1,6 @@
 import hre, { network } from "hardhat";
 
+import prompts from "prompts";
 import { bigNumberify } from "../utils/math";
 import { getFullKey, appendUintConfigIfDifferent, appendAddressConfigIfDifferent } from "../utils/config";
 import * as keys from "../utils/keys";
@@ -99,6 +100,14 @@ const processGeneralConfig = async ({ generalConfig, oracleConfig, handleConfig 
     "0x",
     generalConfig.positionFeeReceiverFactor,
     `positionFeeReceiverFactor`
+  );
+
+  await handleConfig(
+    "uint",
+    keys.LIQUIDATION_FEE_RECEIVER_FACTOR,
+    "0x",
+    generalConfig.liquidationFeeReceiverFactor,
+    `liquidationFeeReceiverFactor`
   );
 
   await handleConfig("uint", keys.DEPOSIT_GAS_LIMIT, "0x", generalConfig.depositGasLimit, `depositGasLimit`);
@@ -336,6 +345,14 @@ export async function updateGeneralConfig({ write }) {
   console.log("multicallWriteParams", multicallWriteParams);
 
   try {
+    if (!write) {
+      ({ write } = await prompts({
+        type: "confirm",
+        name: "write",
+        message: "Do you want to execute the transactions?",
+      }));
+    }
+
     if (write) {
       const tx = await config.multicall(multicallWriteParams);
       console.log(`tx sent: ${tx.hash}`);

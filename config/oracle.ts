@@ -10,6 +10,7 @@ export type OracleConfig = {
   maxOraclePriceAge: number;
   maxOracleTimestampRange: number;
   maxRefPriceDeviationFactor: BigNumberish;
+  chainlinkPaymentToken?: string;
 };
 
 export default async function (hre: HardhatRuntimeEnvironment): Promise<OracleConfig> {

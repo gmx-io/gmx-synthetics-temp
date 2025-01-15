@@ -8,7 +8,7 @@ function getValues() {
   if (hre.network.name === "arbitrum") {
     return {
       explorerUrl:
-        "https://api.arbiscan.io/api/?module=account&action=txlist&address=0x26dddaa629bb35fc1853d051561f2200dd190588&startblock=1&endblock=9999999999&page=1&sort=desc",
+        "https://api.arbiscan.io/api/?module=account&action=txlist&address=0x3f6df0c3a7221ba1375e87e7097885a601b41afc&startblock=1&endblock=484026324&page=1&sort=desc",
     };
   }
 
@@ -34,8 +34,6 @@ async function main() {
   console.log("found %s txs", txs.length);
 
   const totalDiff = {};
-
-  const glvInfoCache = {};
 
   for (const tx of txs) {
     const txHash = tx.hash;
@@ -68,13 +66,19 @@ async function main() {
       continue;
     }
 
-    const glvInfo = glvInfoCache[glvToken] ?? (await glvReader.getGlvInfo(dataStore.address, glvToken));
-    if (!glvInfoCache[glvToken]) {
-      glvInfoCache[glvToken] = glvInfo;
-    }
+    const glvInfo = await glvReader.getGlvInfo(dataStore.address, glvToken, { blockTag: receipt.blockNumber });
     const longTokenPrice = prices[glvInfo.glv.longToken];
     const shortTokenPrice = prices[glvInfo.glv.shortToken];
-    const indexTokenPrices = glvInfo.markets.map((marketToken) => prices[marketToIndexToken[marketToken]]);
+    const indexTokenPrices = glvInfo.markets.map((marketToken) => {
+      const indexToken = marketToIndexToken[marketToken];
+      if (!indexToken) {
+        throw new Error(`index token not found for market token ${marketToken}`);
+      }
+      if (!prices[indexToken]) {
+        throw new Error(`index token price not found for ${indexToken}`);
+      }
+      return prices[indexToken];
+    });
 
     const [[, glvValueBefore], [, glvValueAfter]] = await Promise.all([
       glvReader.getGlvTokenPrice(

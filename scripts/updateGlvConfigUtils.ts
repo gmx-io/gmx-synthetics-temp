@@ -1,4 +1,4 @@
-import hre from "hardhat";
+import prompts from "prompts";
 
 import { encodeData } from "../utils/hash";
 import { bigNumberify } from "../utils/math";
@@ -7,8 +7,7 @@ import { getFullKey, appendUintConfigIfDifferent } from "../utils/config";
 import { handleInBatches } from "../utils/batch";
 import * as keys from "../utils/keys";
 
-const processGlvs = async ({ glvs, onchainMarketsByTokens, tokens, handleConfig }) => {
-  const dataStore = await hre.ethers.getContract("DataStore");
+const processGlvs = async ({ glvs, onchainMarketsByTokens, tokens, handleConfig, dataStore }) => {
   const marketsToAdd: [string, string][] = [];
 
   for (const glvConfig of glvs) {
@@ -55,7 +54,7 @@ const processGlvs = async ({ glvs, onchainMarketsByTokens, tokens, handleConfig 
     const glvSupportedMarketList = await dataStore.getAddressValuesAt(
       keys.glvSupportedMarketListKey(glvAddress),
       0,
-      50
+      100
     );
 
     for (const glvMarketConfig of glvConfig.markets) {
@@ -68,15 +67,13 @@ const processGlvs = async ({ glvs, onchainMarketsByTokens, tokens, handleConfig 
         marketsToAdd.push([glvAddress, marketAddress]);
       }
 
-      console.log("marketAddress %s", marketAddress);
-
       if (glvMarketConfig.isMarketDisabled !== undefined) {
         await handleConfig(
           "uint",
           keys.IS_GLV_MARKET_DISABLED,
           encodeData(["address", "address"], [glvAddress, marketAddress]),
           glvMarketConfig.isMarketDisabled,
-          `isMarketDisabled ${glvSymbol}`
+          `isMarketDisabled market ${indexToken.symbol}/USD in ${glvSymbol}`
         );
       }
       await handleConfig(
@@ -84,14 +81,14 @@ const processGlvs = async ({ glvs, onchainMarketsByTokens, tokens, handleConfig 
         keys.GLV_MAX_MARKET_TOKEN_BALANCE_AMOUNT,
         encodeData(["address", "address"], [glvAddress, marketAddress]),
         glvMarketConfig.glvMaxMarketTokenBalanceAmount,
-        `glvMaxMarketTokenBalanceAmount ${glvSymbol}`
+        `glvMaxMarketTokenBalanceAmount market ${indexToken.symbol}/USD in ${glvSymbol}`
       );
       await handleConfig(
         "uint",
         keys.GLV_MAX_MARKET_TOKEN_BALANCE_USD,
         encodeData(["address", "address"], [glvAddress, marketAddress]),
         glvMarketConfig.glvMaxMarketTokenBalanceUsd,
-        `glvMaxMarketTokenBalanceUsd ${glvSymbol}`
+        `glvMaxMarketTokenBalanceUsd market ${indexToken.symbol}/USD in ${glvSymbol}`
       );
     }
   }
@@ -99,25 +96,30 @@ const processGlvs = async ({ glvs, onchainMarketsByTokens, tokens, handleConfig 
 };
 
 export async function updateGlvConfig({ write }) {
+  console.log("running update glv config...");
   const { read } = hre.deployments;
 
-  const tokens = await hre.gmx.getTokens();
-  const glvs = await hre.gmx.getGlvs();
-
-  const dataStore = await hre.ethers.getContract("DataStore");
-  const glvHandler = await hre.ethers.getContract("GlvHandler");
-  const multicall = await hre.ethers.getContract("Multicall3");
-  const config = await hre.ethers.getContract("Config");
+  const [tokens, glvs, dataStore, glvHandler, multicall, config] = await Promise.all([
+    hre.gmx.getTokens(),
+    hre.gmx.getGlvs(),
+    hre.ethers.getContract("DataStore"),
+    hre.ethers.getContract("GlvHandler"),
+    hre.ethers.getContract("Multicall3"),
+    hre.ethers.getContract("Config"),
+  ]);
 
   const onchainMarketsByTokens = await getOnchainMarkets(read, dataStore.address);
 
   const configKeys = [];
   const multicallReadParams = [];
+  const readStart = Date.now();
+  console.log("reading on-chain config...");
   const marketsToAdd = await processGlvs({
     glvs,
     onchainMarketsByTokens,
     tokens,
-    handleConfig: async (type, baseKey, keyData) => {
+    dataStore,
+    handleConfig: (type, baseKey, keyData) => {
       if (type !== "uint") {
         throw new Error("Unsupported type");
       }
@@ -134,6 +136,8 @@ export async function updateGlvConfig({ write }) {
   });
 
   const result = await multicall.callStatic.aggregate3(multicallReadParams);
+  console.log("done in %sms", Date.now() - readStart);
+
   const dataCache = {};
   for (let i = 0; i < configKeys.length; i++) {
     const key = configKeys[i];
@@ -142,11 +146,13 @@ export async function updateGlvConfig({ write }) {
   }
 
   const multicallWriteParams = [];
-
+  console.log("preparing write params...");
+  const prepareStart = Date.now();
   await processGlvs({
     glvs,
     onchainMarketsByTokens,
     tokens,
+    dataStore,
     handleConfig: async (type, baseKey, keyData, value, label) => {
       if (type !== "uint") {
         throw new Error("Unsupported type");
@@ -155,34 +161,49 @@ export async function updateGlvConfig({ write }) {
       await appendUintConfigIfDifferent(multicallWriteParams, dataCache, baseKey, keyData, value, label);
     },
   });
+  console.log("done in %sms", Date.now() - prepareStart);
+
+  if (multicallWriteParams.length === 0) {
+    console.log("no changes to apply");
+    return;
+  }
 
   console.info(`updating ${multicallWriteParams.length} params`);
   console.info("multicallWriteParams", multicallWriteParams);
 
-  if (write) {
-    for (const [glvAddress, marketAddress] of marketsToAdd) {
-      console.log("adding market %s to glv %s", marketAddress, glvAddress);
-      const tx = await glvHandler.addMarketToGlv(glvAddress, marketAddress);
-      console.log("sent tx: %s", tx.hash);
-    }
-
-    await handleInBatches(multicallWriteParams, 100, async (batch) => {
-      const tx = await config.multicall(batch);
-      console.info(`update config tx sent: ${tx.hash}`);
-    });
-  } else {
-    for (const [glvAddress, marketAddress] of marketsToAdd) {
-      console.log("simulating adding market %s to glv %s", marketAddress, glvAddress);
-      await glvHandler.callStatic.addMarketToGlv(glvAddress, marketAddress);
-      console.info("done");
-    }
-
-    await handleInBatches(multicallWriteParams, 100, async (batch) => {
-      console.log("simulating config updates");
-      await config.callStatic.multicall(batch);
-      console.log("done");
-    });
-
-    console.info("NOTE: executed in read-only mode, no transactions were sent");
+  console.log("running simulation");
+  for (const [glvAddress, marketAddress] of marketsToAdd) {
+    console.log("simulating adding market %s to glv %s", marketAddress, glvAddress);
+    await glvHandler.callStatic.addMarketToGlv(glvAddress, marketAddress);
   }
+
+  await handleInBatches(multicallWriteParams, 100, async (batch) => {
+    console.log("simulating config updates");
+    await config.callStatic.multicall(batch);
+  });
+  console.log("simulation done");
+
+  if (!write) {
+    ({ write } = await prompts({
+      type: "confirm",
+      name: "write",
+      message: "Do you want to execute the transactions?",
+    }));
+  }
+
+  if (!write) {
+    console.info("NOTE: executed in read-only mode, no transactions were sent");
+    return;
+  }
+
+  for (const [glvAddress, marketAddress] of marketsToAdd) {
+    console.log("adding market %s to glv %s", marketAddress, glvAddress);
+    const tx = await glvHandler.addMarketToGlv(glvAddress, marketAddress);
+    console.log("sent tx: %s", tx.hash);
+  }
+
+  await handleInBatches(multicallWriteParams, 100, async (batch) => {
+    const tx = await config.multicall(batch);
+    console.info(`update config tx sent: ${tx.hash}`);
+  });
 }

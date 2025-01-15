@@ -18,7 +18,7 @@ export type BuybackConfig = {
   maxPriceAge: number;
 };
 
-export default async function (hre: HardhatRuntimeEnvironment): Promise {
+export default async function (hre: HardhatRuntimeEnvironment): Promise<BuybackConfig> {
   const defaultEmptyConfig = {
     batchAmounts: [],
     gmxFactors: [],

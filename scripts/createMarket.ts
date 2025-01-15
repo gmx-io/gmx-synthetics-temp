@@ -1,8 +1,11 @@
 import hre from "hardhat";
 import { DEFAULT_MARKET_TYPE, createMarketConfigByKey, getMarketKey, getMarketTokenAddresses } from "../utils/market";
+import prompts from "prompts";
 import * as keys from "../utils/keys";
 import { encodeData } from "../utils/hash";
 import { parseLogs, getEventData } from "../utils/event";
+
+let write = process.env.WRITE === "true";
 
 async function main() {
   const marketFactory = await hre.ethers.getContract("MarketFactory");
@@ -62,7 +65,15 @@ async function main() {
     `creating market: indexToken: ${indexTokenAddress}, longToken: ${longTokenAddress}, shortToken: ${shortTokenAddress}`
   );
 
-  if (process.env.WRITE === "true") {
+  if (!write) {
+    ({ write } = await prompts({
+      type: "confirm",
+      name: "write",
+      message: "Do you want to execute the transactions?",
+    }));
+  }
+
+  if (write) {
     const tx0 = await marketFactory.createMarket(
       indexTokenAddress,
       longTokenAddress,

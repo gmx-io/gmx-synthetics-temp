@@ -6,6 +6,8 @@ import { RolesConfig } from "./roles";
 import { RiskOracleConfig } from "./riskOracle";
 import { VaultV1Config } from "./vaultV1";
 
+export type OracleProvider = "gmOracle" | "chainlinkDataStream" | "chainlinkPriceFeed";
+
 // extend hardhat config with custom gmx property
 declare module "hardhat/types/runtime" {
   interface HardhatRuntimeEnvironment {

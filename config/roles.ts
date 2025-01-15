@@ -97,7 +97,7 @@ export default async function (hre: HardhatRuntimeEnvironment): Promise<RolesCon
         "0x0765678B4f2B45fa9604264a63762E2fE460df64": true, // general_keeper_2
         "0xD5F8b9ba4255B2F73b06f245fcca73D114D1D460": true, // general_keeper_3
         "0x4b6ACC5b2db1757bD49408FeE92e32D39608B5d9": true, // multisig_1
-        "0x31FaBf54278E79069c4E102e9fB79d6a44be53A8": true, // ConfigSyncer_3
+        "0xb6d37DFCdA9c237ca98215f9154Dc414EFe0aC1b": true, // ConfigSyncer_4
       },
       FEE_KEEPER: {
         "0x43CE1d475e06c65DD879f4ec644B8e0E10ff2b6D": true, // fee_keeper_1
@@ -128,8 +128,8 @@ export default async function (hre: HardhatRuntimeEnvironment): Promise<RolesCon
         "0xf5f30b10141e1f63fc11ed772931a8294a591996": true, // MarketFactory_1
         "0xdaFa7Deb67805d7498Aa926002bB2d713D1d9256": true, // GlvFactory_2
 
-        "0xE37D052e1DeB99901de205E7186E31A36E4Ef70c": true, // Config_4
-        "0x55E8E153048294c060455e5762d7280FAee86Dc7": true, // ConfigSyncer_4
+        "0xD1781719eDbED8940534511ac671027989e724b9": true, // Config_4
+        "0xb6d37DFCdA9c237ca98215f9154Dc414EFe0aC1b": true, // ConfigSyncer_4
         "0x7A967D114B8676874FA2cFC1C14F3095C88418Eb": true, // Timelock_4
         "0xb8fc96d7a413C462F611A7aC0C912c2FE26EAbC4": true, // Oracle_4
         "0x9CbB37630d65324af064F28CCD9dF6E667Cb16F1": true, // SwapHandler_4
@@ -161,7 +161,7 @@ export default async function (hre: HardhatRuntimeEnvironment): Promise<RolesCon
         "0x0765678B4f2B45fa9604264a63762E2fE460df64": true, // general_keeper_2
         "0xD5F8b9ba4255B2F73b06f245fcca73D114D1D460": true, // general_keeper_3
         "0x15F9eBC71c539926B8f652a534d29B4Af57CaD55": true, // multisig_1
-        "0xe75f1fA4858A99e07ca878388AE9259Ba048C87A": true, // ConfigSyncer_3
+        "0x7dCec0356434d03a6071C96347516df3eF4471bB": true, // ConfigSyncer_4
       },
       FEE_KEEPER: {
         "0x43CE1d475e06c65DD879f4ec644B8e0E10ff2b6D": true, // fee_keeper_1
@@ -192,8 +192,8 @@ export default async function (hre: HardhatRuntimeEnvironment): Promise<RolesCon
         "0xc57c155faccd93f62546f329d1483e0e5b9c1241": true, // MarketFactory_1
         "0x5d6B84086DA6d4B0b6C0dF7E02f8a6A039226530": true, // GlvFactory_2
 
-        "0x1Ad2560bD34D17A413e4eb9420643d1782466dDA": true, // Config_4
-        "0xcF71721924c312374bF8366c3f60a127A1e80e3C": true, // ConfigSyncer_4
+        "0xEb376626D44c638Fd0C41170a40fd23a1A0622b7": true, // Config_4
+        "0x7dCec0356434d03a6071C96347516df3eF4471bB": true, // ConfigSyncer_4
         "0xdF23692341538340db0ff04C65017F51b69a29f6": true, // Timelock_4
         "0xAd7a7568F500F65AEA3D9417A210CBc5dcD7b273": true, // Oracle_4
         "0x81d8B0F2FD89D31728E8fe36fa3C9aD8BAcF10DC": true, // SwapHandler_4

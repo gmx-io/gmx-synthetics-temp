@@ -1,4 +1,3 @@
-import hre from "hardhat";
 import { BigNumber } from "ethers";
 
 export const EXCLUDED_CONFIG_KEYS = {
