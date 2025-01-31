@@ -117,6 +117,7 @@ export const PRICE_FEED_MULTIPLIER = hashString("PRICE_FEED_MULTIPLIER");
 export const PRICE_FEED_HEARTBEAT_DURATION = hashString("PRICE_FEED_HEARTBEAT_DURATION");
 export const DATA_STREAM_ID = hashString("DATA_STREAM_ID");
 export const DATA_STREAM_MULTIPLIER = hashString("DATA_STREAM_MULTIPLIER");
+export const DATA_STREAM_SPREAD_REDUCTION_FACTOR = hashString("DATA_STREAM_SPREAD_REDUCTION_FACTOR");
 export const STABLE_PRICE = hashString("STABLE_PRICE");
 
 export const ORACLE_TYPE = hashString("ORACLE_TYPE");
@@ -140,6 +141,7 @@ export const POSITION_IMPACT_POOL_DISTRIBUTED_AT = hashString("POSITION_IMPACT_P
 export const SWAP_IMPACT_POOL_AMOUNT = hashString("SWAP_IMPACT_POOL_AMOUNT");
 
 export const POSITION_FEE_RECEIVER_FACTOR = hashString("POSITION_FEE_RECEIVER_FACTOR");
+export const LIQUIDATION_FEE_RECEIVER_FACTOR = hashString("LIQUIDATION_FEE_RECEIVER_FACTOR");
 export const BORROWING_FEE_RECEIVER_FACTOR = hashString("BORROWING_FEE_RECEIVER_FACTOR");
 
 export const SWAP_FEE_FACTOR = hashString("SWAP_FEE_FACTOR");
@@ -392,6 +394,10 @@ export function dataStreamIdKey(token: string) {
 
 export function dataStreamMultiplierKey(token: string) {
   return hashData(["bytes32", "address"], [DATA_STREAM_MULTIPLIER, token]);
+}
+
+export function dataStreamSpreadReductionFactorKey(token: string) {
+  return hashData(["bytes32", "address"], [DATA_STREAM_SPREAD_REDUCTION_FACTOR, token]);
 }
 
 export function stablePriceKey(token: string) {

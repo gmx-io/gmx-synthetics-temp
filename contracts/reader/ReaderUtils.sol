@@ -47,6 +47,11 @@ library ReaderUtils {
         bool isDisabled;
     }
 
+    struct OrderInfo {
+        bytes32 orderKey;
+        Order.Props order;
+    }
+
     struct BaseFundingValues {
         MarketUtils.PositionType fundingFeeAmountPerSize;
         MarketUtils.PositionType claimableFundingAmountPerSize;

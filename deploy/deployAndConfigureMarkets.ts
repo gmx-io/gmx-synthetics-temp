@@ -109,8 +109,6 @@ const func = async ({ deployments, getNamedAccounts, gmx }: HardhatRuntimeEnviro
 };
 
 func.skip = async ({ gmx, network }) => {
-  // TODO remove
-  return true;
   // skip if no markets configured
   const markets = await gmx.getMarkets();
   if (!markets || markets.length === 0) {

@@ -57,7 +57,7 @@ async function requestMigrationData(fromTimestamp: number) {
 }
 
 async function main() {
-  const { fromTimestamp, fromDate, toTimestamp, toDate, distributionTypeId } = processArgs("trading");
+  const { fromTimestamp, fromDate, toTimestamp, toDate, distributionTypeId } = await processArgs("trading");
 
   console.log("Running script to get distribution data");
   console.log("From: %s (timestamp %s)", fromDate.toISOString().substring(0, 19), fromTimestamp);

@@ -72,6 +72,8 @@ async function verifyForNetwork(verificationNetwork) {
   const allDeployments = await hre.deployments.all();
   console.log("Verifying %s contracts", Object.keys(allDeployments).length);
 
+  const unverifiedContracts = [];
+
   for (const [name, deployment] of Object.entries(allDeployments)) {
     const start = Date.now();
     const { address, args } = deployment;
@@ -120,12 +122,31 @@ async function verifyForNetwork(verificationNetwork) {
       console.log("Verified contract %s %s in %ss", name, address, (Date.now() - start) / 1000);
       cache[address] = true;
     } catch (ex) {
+      unverifiedContracts.push({
+        address,
+        error: ex,
+      });
       console.error("Failed to verify contract %s in %ss", address, (Date.now() - start) / 1000);
       console.error(ex);
     }
   }
 
   writeJsonFile(cacheFilePath, cache);
+
+  if (unverifiedContracts.length > 0) {
+    console.log(`${unverifiedContracts.length} contracts were not verified`);
+    console.log(`-------`);
+    for (let i = 0; i < unverifiedContracts.length; i++) {
+      const unverifiedContract = unverifiedContracts[i];
+      console.log(`${i + 1}: ${unverifiedContract.address}`);
+    }
+    console.log(`-------`);
+    for (let i = 0; i < unverifiedContracts.length; i++) {
+      const unverifiedContract = unverifiedContracts[i];
+      console.log(`${i + 1}: ${unverifiedContract.address}`);
+      console.log(`Error: ${unverifiedContract.error}`);
+    }
+  }
   console.log("Done");
 }
 
@@ -134,7 +155,7 @@ async function main() {
 
   if (networkName === "avalanche") {
     await verifyForNetwork("avalanche");
-    await verifyForNetwork("snowscan");
+    // await verifyForNetwork("snowscan");
   } else {
     await verifyForNetwork(networkName);
   }

@@ -1,4 +1,3 @@
-import hre from "hardhat";
 import { bigNumberify } from "./math";
 import { BigNumber } from "ethers";
 

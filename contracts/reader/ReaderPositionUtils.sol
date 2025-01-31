@@ -17,6 +17,7 @@ library ReaderPositionUtils {
     using SafeCast for uint256;
 
     struct PositionInfo {
+        bytes32 positionKey;
         Position.Props position;
         PositionPricingUtils.PositionFees fees;
         ReaderPricingUtils.ExecutionPriceResult executionPriceResult;

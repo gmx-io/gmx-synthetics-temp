@@ -15,4 +15,8 @@ const func = createDeployFunction({
   },
 });
 
+func.skip = async () => {
+  return process.env.SKIP_HANDLER_DEPLOYMENTS ? true : false;
+};
+
 export default func;

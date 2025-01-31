@@ -56,8 +56,11 @@ export default async function ({ network }: HardhatRuntimeEnvironment) {
       positionFeeReceiverFactor: 0,
       swapFeeReceiverFactor: 0,
       borrowingFeeReceiverFactor: 0,
+      liquidationFeeReceiverFactor: 0,
 
       skipBorrowingFeeForSmallerSide: false,
+
+      ignoreOpenInterestForUsageFactor: false,
     };
   }
 
@@ -111,8 +114,11 @@ export default async function ({ network }: HardhatRuntimeEnvironment) {
     positionFeeReceiverFactor: decimalToFloat(37, 2), // 37%
     swapFeeReceiverFactor: decimalToFloat(37, 2), // 37%
     borrowingFeeReceiverFactor: decimalToFloat(37, 2), // 37%
+    liquidationFeeReceiverFactor: decimalToFloat(37, 2), // 37%
 
     skipBorrowingFeeForSmallerSide: true,
+
+    ignoreOpenInterestForUsageFactor: false,
   };
 
   const networkConfig = {
@@ -135,10 +141,12 @@ export default async function ({ network }: HardhatRuntimeEnvironment) {
       increaseOrderGasLimit: 3_000_000,
       decreaseOrderGasLimit: 3_000_000,
       swapOrderGasLimit: 2_500_000,
+      ignoreOpenInterestForUsageFactor: true,
     },
     avalanche: {
       increaseOrderGasLimit: 3_500_000,
       decreaseOrderGasLimit: 3_500_000,
+      ignoreOpenInterestForUsageFactor: true,
     },
   }[network.name];
 

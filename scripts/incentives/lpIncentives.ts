@@ -237,7 +237,7 @@ Example of usage:
 */
 
 async function main() {
-  const { fromTimestamp, fromDate, toTimestamp, toDate, distributionTypeId } = processArgs("lp");
+  const { fromTimestamp, fromDate, toTimestamp, toDate, distributionTypeId } = await processArgs("lp");
 
   const toBlock = await getBlockByTimestamp(toTimestamp);
   console.log("found toBlock %s %s for timestamp %s", toBlock.number, toBlock.timestamp, toTimestamp);

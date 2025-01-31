@@ -5,7 +5,7 @@ import path from "path";
 import fs from "fs";
 import { ethers } from "ethers";
 
-import { HardhatUserConfig } from "hardhat/config";
+import { HardhatUserConfig, task, types } from "hardhat/config";
 import "@nomicfoundation/hardhat-verify";
 import "hardhat-contract-sizer";
 import "solidity-coverage";
@@ -22,6 +22,8 @@ import "./config";
 
 // add test helper methods
 import "./utils/test";
+import { updateGlvConfig } from "./scripts/updateGlvConfigUtils";
+import { updateMarketConfig } from "./scripts/updateMarketConfigUtils";
 
 const getRpcUrl = (network) => {
   const defaultRpcs = {
@@ -266,5 +268,16 @@ const config: HardhatUserConfig = {
     timeout: 100000000,
   },
 };
+
+task("update-glv-config", "Update GLV config")
+  .addParam("write", "Write to the config", false, types.boolean)
+  .setAction(updateGlvConfig);
+
+task("update-market-config", "Update market config")
+  .addParam("write", "Write to the config", false, types.boolean)
+  .addOptionalParam("market", "Market address", undefined, types.string)
+  .addOptionalParam("includeRiskOracleBaseKeys", "Include risk oracle base keys", false, types.boolean)
+  .addOptionalParam("includeKeeperBaseKeys", "Include keeper base keys", false, types.boolean)
+  .setAction(updateMarketConfig);
 
 export default config;

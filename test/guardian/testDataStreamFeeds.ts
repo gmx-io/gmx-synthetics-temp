@@ -151,7 +151,6 @@ describe("Guardian.DataStreamFeeds", () => {
     expect(await getOrderCount(dataStore)).eq(0);
     await dataStore.setBytes32(keys.dataStreamIdKey(wnt.address), hashString("WNT"));
     await dataStore.setUint(keys.dataStreamMultiplierKey(wnt.address), expandDecimals(1, 34));
-
     const increaseParams = {
       account: user1,
       market: ethUsdMarket,

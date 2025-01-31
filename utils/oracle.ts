@@ -3,6 +3,7 @@ import { hashString, hashData } from "./hash";
 import * as keys from "./keys";
 
 import BN from "bn.js";
+import { OracleProvider } from "../config/types";
 
 export const TOKEN_ORACLE_TYPES: { [key: string]: string } = {
   ONE_PERCENT_PER_MINUTE: hashString("one-percent-per-minute"),
@@ -336,6 +337,45 @@ export async function getOracleParams({
   }
 
   return params;
+}
+
+const DEFAULT_ORACLE_PROVIDER: OracleProvider = "chainlinkDataStream";
+
+export async function getOracleProviderAddress(oracleProviderKey: OracleProvider) {
+  if (!oracleProviderKey) {
+    oracleProviderKey = DEFAULT_ORACLE_PROVIDER;
+  }
+
+  const oracleProviderMap = await getOracleProviderMap();
+  if (!oracleProviderMap[oracleProviderKey]) {
+    throw Error(`Unknown oracle provider ${oracleProviderKey}`);
+  }
+  return oracleProviderMap[oracleProviderKey];
+}
+
+export async function getOracleProviderKey(oracleProviderAddress: string) {
+  const oracleProviderMap = await getOracleProviderMap();
+  for (const [key, address] of Object.entries(oracleProviderMap)) {
+    if (address === oracleProviderAddress) {
+      return key;
+    }
+  }
+}
+
+let _oracleProviderMap: Record<string, string>;
+async function getOracleProviderMap() {
+  if (!_oracleProviderMap) {
+    const chainlinkPriceFeedProvider = await hre.ethers.getContract("ChainlinkPriceFeedProvider");
+    const chainlinkDataStreamProvider = await hre.ethers.getContract("ChainlinkDataStreamProvider");
+    const gmOracleProvider = await hre.ethers.getContract("GmOracleProvider");
+    _oracleProviderMap = {
+      chainlinkPriceFeed: chainlinkPriceFeedProvider.address,
+      chainlinkDataStream: chainlinkDataStreamProvider.address,
+      gmOracle: gmOracleProvider.address,
+    };
+  }
+
+  return _oracleProviderMap;
 }
 
 export function encodeDataStreamData(data) {

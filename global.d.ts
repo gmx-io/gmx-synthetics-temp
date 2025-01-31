@@ -6,3 +6,5 @@ declare global {
   let ethers: typeof ethersModule;
   let hre: typeof HardhatRuntimeEnvironment;
 }
+
+declare const ethers: any;

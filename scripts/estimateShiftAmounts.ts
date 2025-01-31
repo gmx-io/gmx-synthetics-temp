@@ -24,8 +24,7 @@ async function getTickers() {
 function getPriceProp(ticker) {
   return {
     min: ticker.minPrice,
-    // max: ticker.maxPrice,
-    max: ticker.minPrice,
+    max: ticker.maxPrice,
   };
 }
 

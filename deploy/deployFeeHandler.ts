@@ -39,8 +39,11 @@ const func = createDeployFunction({
 
 func.dependencies = func.dependencies.concat(["MockVaultV1"]);
 func.skip = async (hre: HardhatRuntimeEnvironment) => {
-  // skip for fuji
-  return hre.network.name === "avalancheFuji";
+  if (hre.network.name === "avalancheFuji") {
+    return true;
+  }
+
+  return process.env.SKIP_HANDLER_DEPLOYMENTS ? true : false;
 };
 
 export default func;

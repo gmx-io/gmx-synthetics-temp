@@ -77,6 +77,19 @@ contract ChainlinkDataStreamProvider is IOracleProvider {
         uint256 adjustedBidPrice = Precision.mulDiv(uint256(uint192(report.bid)), precision, Precision.FLOAT_PRECISION);
         uint256 adjustedAskPrice = Precision.mulDiv(uint256(uint192(report.ask)), precision, Precision.FLOAT_PRECISION);
 
+        uint256 spreadReductionFactor = _getDataStreamSpreadReductionFactor(token);
+        if (spreadReductionFactor != 0) {
+            // small optimization for full reduction
+            if (spreadReductionFactor == Precision.FLOAT_PRECISION) {
+                adjustedBidPrice = (adjustedAskPrice + adjustedBidPrice) / 2;
+                adjustedAskPrice = adjustedBidPrice;
+            } else {
+                uint256 halfSpread = (adjustedAskPrice - adjustedBidPrice) / 2;
+                adjustedBidPrice = adjustedBidPrice + Precision.applyFactor(halfSpread, spreadReductionFactor);
+                adjustedAskPrice = adjustedAskPrice - Precision.applyFactor(halfSpread, spreadReductionFactor);
+            }
+        }
+
         return OracleUtils.ValidatedPrice({
             token: token,
             min: adjustedBidPrice,
@@ -84,6 +97,15 @@ contract ChainlinkDataStreamProvider is IOracleProvider {
             timestamp: report.observationsTimestamp,
             provider: address(this)
         });
+    }
+
+    function _getDataStreamSpreadReductionFactor(address token) internal view returns (uint256) {
+        uint256 spreadReductionFactor = dataStore.getUint(Keys.dataStreamSpreadReductionFactorKey(token));
+        if (spreadReductionFactor > Precision.FLOAT_PRECISION) {
+            revert Errors.InvalidDataStreamSpreadReductionFactor(token, spreadReductionFactor);
+        }
+
+        return spreadReductionFactor;
     }
 
     function _getDataStreamMultiplier(address token) internal view returns (uint256) {

@@ -1,18 +1,13 @@
-import hre from "hardhat";
 import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
 import { hashString } from "./hash";
+import { spawn } from "child_process";
 
 const unsignedTransactionList = [];
 const signedTransactions = {};
 
 let app;
-
-// to sign using an external wallet:
-// - run `yarn app`
-// - go to http://localhost:5173/signer
-// - connect a wallet and click on the "Sign" button
 
 export async function createSigningServer() {
   if (app) {
@@ -28,6 +23,28 @@ export async function createSigningServer() {
 
   const server = app.listen(port, () => {
     console.info(`server started at port ${port}`);
+
+    setTimeout(() => {
+      console.info("go to http://localhost:5173/signer");
+      console.info('connect a wallet and click on the "Sign" button');
+    }, 1000);
+
+    const child = spawn("yarn", ["app", "--logLevel", "warn"], {
+      stdio: "inherit", // Inherit stdout/stderr to see logs
+      shell: true, // Use shell to allow command parsing
+    });
+
+    child.on("error", (err) => {
+      console.error("Failed to start process:", err);
+    });
+
+    child.on("exit", (code) => {
+      if (code === 0) {
+        console.log("Process finished successfully.");
+      } else {
+        console.error(`Process exited with code ${code}`);
+      }
+    });
   });
 
   app.get("/", (req, res) => {

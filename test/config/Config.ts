@@ -4,7 +4,7 @@ import { deployFixture } from "../../utils/fixture";
 import { EXCLUDED_CONFIG_KEYS } from "../../utils/config";
 import { grantRole } from "../../utils/role";
 import { encodeData, hashString } from "../../utils/hash";
-import { decimalToFloat, expandDecimals } from "../../utils/math";
+import { bigNumberify, decimalToFloat, expandDecimals, percentageToFloat } from "../../utils/math";
 import { TOKEN_ORACLE_TYPES } from "../../utils/oracle";
 import { errorsContract } from "../../utils/error";
 import * as keys from "../../utils/keys";
@@ -55,7 +55,7 @@ describe("Config", () => {
     }
   });
 
-  it("reverts for unwhitelisted keys", async () => {
+  it("reverts for non-whitelisted keys", async () => {
     await expect(
       config
         .connect(user0)
@@ -374,6 +374,46 @@ describe("Config", () => {
     );
   });
 
+  it("validates funding increase factor", async () => {
+    const validValue = bigNumberify("100000000000000000000000").div(3600);
+    await expect(
+      config.setUint(
+        keys.FUNDING_INCREASE_FACTOR_PER_SECOND,
+        encodeData(["address"], [ethUsdMarket.marketToken]),
+        validValue.add(100)
+      )
+    ).to.be.revertedWithCustomError(errorsContract, "ConfigValueExceedsAllowedRange");
+
+    await config.setUint(
+      keys.FUNDING_INCREASE_FACTOR_PER_SECOND,
+      encodeData(["address"], [ethUsdMarket.marketToken]),
+      validValue
+    );
+
+    const onchainValue = await dataStore.getUint(keys.fundingIncreaseFactorPerSecondKey(ethUsdMarket.marketToken));
+    expect(onchainValue).eq(validValue);
+  });
+
+  it("validates funding decrease factor", async () => {
+    const validValue = bigNumberify("100000000000000000000000").div(86400);
+    await expect(
+      config.setUint(
+        keys.FUNDING_DECREASE_FACTOR_PER_SECOND,
+        encodeData(["address"], [ethUsdMarket.marketToken]),
+        validValue.add(100)
+      )
+    ).to.be.revertedWithCustomError(errorsContract, "ConfigValueExceedsAllowedRange");
+
+    await config.setUint(
+      keys.FUNDING_DECREASE_FACTOR_PER_SECOND,
+      encodeData(["address"], [ethUsdMarket.marketToken]),
+      validValue
+    );
+
+    const onchainValue = await dataStore.getUint(keys.fundingDecreaseFactorPerSecondKey(ethUsdMarket.marketToken));
+    expect(onchainValue).eq(validValue);
+  });
+
   it("validates max funding fee factor is higher than min funding fee factor", async () => {
     await config.setUint(keys.MAX_FUNDING_FACTOR_PER_SECOND, encodeData(["address"], [ethUsdMarket.marketToken]), 10);
     await config.setUint(keys.MIN_FUNDING_FACTOR_PER_SECOND, encodeData(["address"], [ethUsdMarket.marketToken]), 5);
@@ -385,6 +425,40 @@ describe("Config", () => {
     await expect(
       config.setUint(keys.MAX_FUNDING_FACTOR_PER_SECOND, encodeData(["address"], [ethUsdMarket.marketToken]), 4)
     ).to.be.revertedWithCustomError(errorsContract, "ConfigValueExceedsAllowedRange");
+  });
+
+  it("validates data stream spread reduction factor", async () => {
+    const p100 = percentageToFloat("100%");
+
+    await expect(
+      config.setUint(keys.DATA_STREAM_SPREAD_REDUCTION_FACTOR, encodeData(["address"], [wnt.address]), p100.add(1))
+    ).to.be.revertedWithCustomError(errorsContract, "ConfigValueExceedsAllowedRange");
+
+    await config.setUint(keys.DATA_STREAM_SPREAD_REDUCTION_FACTOR, encodeData(["address"], [wnt.address]), p100);
+  });
+
+  it("setDataStream", async () => {
+    const p100 = percentageToFloat("100%");
+    const feedId = hashString("WNT");
+
+    await expect(
+      config.setDataStream(wnt.address, feedId, expandDecimals(1, 34), p100.add(1))
+    ).to.be.revertedWithCustomError(errorsContract, "ConfigValueExceedsAllowedRange");
+
+    expect(await dataStore.getBytes32(keys.dataStreamIdKey(wnt.address))).eq(ethers.constants.HashZero);
+    expect(await dataStore.getUint(keys.dataStreamMultiplierKey(wnt.address))).eq(0);
+    expect(await dataStore.getUint(keys.dataStreamSpreadReductionFactorKey(wnt.address))).eq(0);
+
+    await config.setDataStream(wnt.address, feedId, expandDecimals(1, 34), p100);
+
+    expect(await dataStore.getBytes32(keys.dataStreamIdKey(wnt.address))).eq(feedId);
+    expect(await dataStore.getUint(keys.dataStreamMultiplierKey(wnt.address))).eq(expandDecimals(1, 34));
+    expect(await dataStore.getUint(keys.dataStreamSpreadReductionFactorKey(wnt.address))).eq(p100);
+
+    await expect(config.setDataStream(wnt.address, feedId, expandDecimals(1, 34), p100)).to.be.revertedWithCustomError(
+      errorsContract,
+      "DataStreamIdAlreadyExistsForToken"
+    );
   });
 
   it("setClaimableCollateralFactorForAccount", async () => {

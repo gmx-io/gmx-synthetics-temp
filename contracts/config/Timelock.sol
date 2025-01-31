@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "../role/RoleModule.sol";
 import "../event/EventEmitter.sol";
 import "../utils/BasicMulticall.sol";
+import "../utils/Precision.sol";
 import "../oracle/OracleStore.sol";
 import "../data/DataStore.sol";
 import "../data/Keys.sol";
@@ -472,15 +473,22 @@ contract Timelock is ReentrancyGuard, RoleModule, BasicMulticall {
     // @param token the token to set the data stream feed for
     // @param feedId the ID of the data stream feed
     // @param dataStreamMultiplier the multiplier to apply to the data stream feed results
+    // @param dataStreamSpreadReductionFactor the factor to apply to the data stream price spread
     function signalSetDataStream(
         address token,
         bytes32 feedId,
-        uint256 dataStreamMultiplier
+        uint256 dataStreamMultiplier,
+        uint256 dataStreamSpreadReductionFactor
     ) external onlyTimelockAdmin nonReentrant {
+        if (dataStreamSpreadReductionFactor > Precision.FLOAT_PRECISION) {
+            revert Errors.ConfigValueExceedsAllowedRange(Keys.DATA_STREAM_SPREAD_REDUCTION_FACTOR, dataStreamSpreadReductionFactor);
+        }
+
         bytes32 actionKey = _setDataStreamActionKey(
             token,
             feedId,
-            dataStreamMultiplier
+            dataStreamMultiplier,
+            dataStreamSpreadReductionFactor
         );
 
         _signalPendingAction(actionKey, "setDataStream");
@@ -490,8 +498,9 @@ contract Timelock is ReentrancyGuard, RoleModule, BasicMulticall {
         eventData.addressItems.setItem(0, "token", token);
         eventData.bytes32Items.initItems(1);
         eventData.bytes32Items.setItem(0, "feedId", feedId);
-        eventData.uintItems.initItems(1);
+        eventData.uintItems.initItems(2);
         eventData.uintItems.setItem(0, "dataStreamMultiplier", dataStreamMultiplier);
+        eventData.uintItems.setItem(1, "dataStreamSpreadReductionFactor", dataStreamSpreadReductionFactor);
         eventEmitter.emitEventLog1(
             "SignalSetDataStream",
             actionKey,
@@ -503,29 +512,34 @@ contract Timelock is ReentrancyGuard, RoleModule, BasicMulticall {
     // @param token the token to set the data stream feed for
     // @param feedId the ID of the data stream feed
     // @param dataStreamMultiplier the multiplier to apply to the data stream feed results
+    // @param dataStreamMultiplier the factor to apply to the data stream price spread
     function setDataStreamAfterSignal(
         address token,
         bytes32 feedId,
-        uint256 dataStreamMultiplier
+        uint256 dataStreamMultiplier,
+        uint256 dataStreamSpreadReductionFactor
     ) external onlyTimelockAdmin nonReentrant {
         bytes32 actionKey = _setDataStreamActionKey(
             token,
             feedId,
-            dataStreamMultiplier
+            dataStreamMultiplier,
+            dataStreamSpreadReductionFactor
         );
 
         _validateAndClearAction(actionKey, "setDataStream");
 
         dataStore.setBytes32(Keys.dataStreamIdKey(token), feedId);
         dataStore.setUint(Keys.dataStreamMultiplierKey(token), dataStreamMultiplier);
+        dataStore.setUint(Keys.dataStreamSpreadReductionFactorKey(token), dataStreamSpreadReductionFactor);
 
         EventUtils.EventLogData memory eventData;
         eventData.addressItems.initItems(1);
         eventData.addressItems.setItem(0, "token", token);
         eventData.bytes32Items.initItems(1);
         eventData.bytes32Items.setItem(0, "feedId", feedId);
-        eventData.uintItems.initItems(1);
+        eventData.uintItems.initItems(2);
         eventData.uintItems.setItem(0, "dataStreamMultiplier", dataStreamMultiplier);
+        eventData.uintItems.setItem(1, "dataStreamSpreadReductionFactor", dataStreamSpreadReductionFactor);
         eventEmitter.emitEventLog1(
             "SetDataStream",
             actionKey,
@@ -617,13 +631,15 @@ contract Timelock is ReentrancyGuard, RoleModule, BasicMulticall {
     function _setDataStreamActionKey(
         address token,
         bytes32 feedId,
-        uint256 dataStreamMultiplier
+        uint256 dataStreamMultiplier,
+        uint256 dataStreamSpreadReductionFactor
     ) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(
             "setDataStream",
             token,
             feedId,
-            dataStreamMultiplier
+            dataStreamMultiplier,
+            dataStreamSpreadReductionFactor
         ));
     }
 

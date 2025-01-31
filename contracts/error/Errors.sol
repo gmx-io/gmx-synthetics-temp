@@ -216,6 +216,7 @@ library Errors {
     error GmMaxPricesNotSorted(address token, uint256 price, uint256 prevPrice);
     error EmptyChainlinkPriceFeedMultiplier(address token);
     error EmptyDataStreamMultiplier(address token);
+    error InvalidDataStreamSpreadReductionFactor(address token, uint256 spreadReductionFactor);
     error InvalidFeedPrice(address token, int256 price);
     error ChainlinkPriceFeedNotUpdated(address token, uint256 timestamp, uint256 heartbeatDuration);
     error GmMaxSignerIndex(uint256 signerIndex, uint256 maxSignerIndex);

@@ -104,11 +104,6 @@ async function main() {
   let propsCount = 0;
 
   for (const market of markets) {
-    console.log(
-      "keys.savedFundingFactorPerSecondKey(market.marketToken)",
-      market.marketToken,
-      keys.savedFundingFactorPerSecondKey(market.marketToken)
-    );
     for (const [prop, key] of [
       ["positionImpactPoolAmount", keys.positionImpactPoolAmountKey(market.marketToken)],
       ["swapImpactPoolAmountLong", keys.swapImpactPoolAmountKey(market.marketToken, market.longToken)],
@@ -175,8 +170,6 @@ async function main() {
   const consoleCollateralSumData: any[] = [];
   let globalCollateralSumLongTotal = bigNumberify(0);
   let globalCollateralSumShortTotal = bigNumberify(0);
-  const globalOpenInterestLong = bigNumberify(0);
-  const globalOpenInterestShort = bigNumberify(0);
 
   for (let i = 0; i < marketInfoList.length; i++) {
     const marketInfo = marketInfoList[i];
@@ -329,19 +322,25 @@ async function main() {
       consoleCollateralSumData.push({
         market: marketLabel,
         total: `$${formatAmount(collateralSumTotal, 30, 0, true)}`,
-        // collateralLong_isLong: collateralSum_collateralLong_isLong,
-        // collateralLong_isShort: collateralSum_collateralLong_isShort,
-        // collateralShort_isLong: collateralSum_collateralShort_isLong,
-        // collateralShort_isShort: collateralSum_collateralShort_isShort,
+        collateralLong_isLong: collateralSum_collateralLong_isLong,
+        collateralLong_isShort: collateralSum_collateralLong_isShort,
+        collateralShort_isLong: collateralSum_collateralShort_isLong,
+        collateralShort_isShort: collateralSum_collateralShort_isShort,
         openInterest: `$${formatAmount(openInterest, 30, 0, true)}`,
         openInterestLong: `$${formatAmount(openInterestLong, 30, 0, true)}`,
         openInterestShort: `$${formatAmount(openInterestShort, 30, 0, true)}`,
         borrowed: `$${formatAmount(openInterest.sub(collateralSumTotal), 30, 0, true)}`,
         borrowedLong: `$${formatAmount(openInterestLong.sub(collateralSumLongTotal), 30, 0, true)}`,
         borrowedShort: `$${formatAmount(openInterestShort.sub(collateralSumShortTotal), 30, 0, true)}`,
-        lev: `${formatAmount(openInterest.mul(FLOAT_PRECISION).div(collateralSumTotal), 30, 2)}x`,
-        longLev: `${formatAmount(openInterestLong.mul(FLOAT_PRECISION).div(collateralSumLongTotal), 30, 2)}x`,
-        shortLev: `${formatAmount(openInterestShort.mul(FLOAT_PRECISION).div(collateralSumShortTotal), 30, 2)}x`,
+        lev: collateralSumTotal.gt(0)
+          ? `${formatAmount(openInterest.mul(FLOAT_PRECISION).div(collateralSumTotal), 30, 2)}x`
+          : "N/A",
+        longLev: collateralSumLongTotal.gt(0)
+          ? `${formatAmount(openInterestLong.mul(FLOAT_PRECISION).div(collateralSumLongTotal), 30, 2)}x`
+          : "N/A",
+        shortLev: collateralSumShortTotal.gt(0)
+          ? `${formatAmount(openInterestShort.mul(FLOAT_PRECISION).div(collateralSumShortTotal), 30, 2)}x`
+          : "N/A",
       });
     }
 

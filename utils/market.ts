@@ -4,7 +4,6 @@ import { hashData, hashString } from "./hash";
 import { poolAmountKey, swapImpactPoolAmountKey } from "./keys";
 import * as keys from "./keys";
 
-import MarketTokenArtifact from "../artifacts/contracts/market/MarketToken.sol/MarketToken.json";
 import { ethers } from "ethers";
 
 export const DEFAULT_MARKET_TYPE = hashString("basic-v1");
@@ -79,6 +78,8 @@ export function getMarketTokenAddress(
     ["string", "address", "address", "address", "bytes32"],
     ["GMX_MARKET", indexToken, longToken, shortToken, marketType]
   );
+  // eslint-disable-next-line
+  const MarketTokenArtifact = require("../artifacts/contracts/market/MarketToken.sol/MarketToken.json");
   const byteCode = MarketTokenArtifact.bytecode;
   return calculateCreate2(marketFactoryAddress, salt, byteCode, {
     params: [roleStoreAddress, dataStoreAddress],

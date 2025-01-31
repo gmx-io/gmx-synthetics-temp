@@ -1,6 +1,8 @@
 import fs from "fs";
-import { BigNumber, Wallet } from "ethers";
+import { BigNumber } from "ethers";
 
+import { globSync } from "glob";
+import prompts from "prompts";
 import hre, { ethers } from "hardhat";
 import { range } from "lodash";
 import { bigNumberify, formatAmount } from "../../utils/math";
@@ -15,8 +17,7 @@ Example of usage:
 FILENAME=distribution_2023-10-18.json npx hardhat --network arbitrum run batchSend.ts
 */
 
-const shouldSendTxn = process.env.WRITE === "true";
-const dryRun = process.env.DRY_RUN === "true";
+let write = process.env.WRITE === "true";
 
 function getArbValues() {
   return {
@@ -41,11 +42,7 @@ function getValues() {
 }
 
 async function main() {
-  if (shouldSendTxn && dryRun) {
-    throw new Error("Can only either WRITE or DRY_RUN");
-  }
-
-  const { data, distributionTypeName } = readDistributionFile();
+  const { data, distributionTypeName } = await readDistributionFile();
 
   const migrations = readMigrations();
   if (migrations[data.id] && !process.env.SKIP_MIGRATION_VALIDATION) {
@@ -54,14 +51,16 @@ async function main() {
     );
   }
 
-  let signer: Wallet;
-  if (shouldSendTxn || dryRun) {
-    if (!process.env.BATCH_SENDER_KEY) {
-      throw new Error("BATCH_SENDER_KEY is required");
-    }
+  if (!process.env.BATCH_SENDER_KEY) {
+    throw new Error("BATCH_SENDER_KEY is required");
+  }
 
-    const wallet = new ethers.Wallet(process.env.BATCH_SENDER_KEY);
-    signer = wallet.connect(ethers.provider);
+  const wallet = new ethers.Wallet(process.env.BATCH_SENDER_KEY);
+  const signer = wallet.connect(ethers.provider);
+
+  if (write) {
+    console.warn("WARN: sending real transaction...");
+    await setTimeout(5000);
   }
 
   const { batchSenderAddress } = getValues();
@@ -81,122 +80,146 @@ async function main() {
   console.log("recipients %s", recipients.length);
   console.log("distribution type %s %s", data.distributionTypeId, distributionTypeName);
 
-  if (shouldSendTxn || dryRun) {
-    if (shouldSendTxn) {
-      console.warn("WARN: sending real transaction...");
-      await setTimeout(5000);
+  const signerAddress = await signer.getAddress();
+  console.log("signer address: %s", signerAddress);
+
+  const batchSender = await ethers.getContractAt(BatchSenderAbi, batchSenderAddress, signer);
+  const tokenContract = await ethers.getContractAt("MintableToken", data.token, signer);
+  const batchSize = 150;
+
+  const balance = await tokenContract.balanceOf(signerAddress);
+  if (balance.lt(totalAmount)) {
+    throw new Error(
+      `Current balance ${formatAmount(balance, 18, 2, true)} is lower than required ${formatAmount(
+        totalAmount,
+        18,
+        2,
+        true
+      )}`
+    );
+  }
+  console.log("balance is %s", formatAmount(balance, 18, 2, true));
+
+  const allowance = await tokenContract.allowance(signerAddress, batchSenderAddress);
+  console.log("total amount to send: %s", formatAmount(totalAmount, 18, 2, true));
+  console.log("current allowance is %s", formatAmount(allowance, 18, 2, true));
+  if (allowance.lt(totalAmount)) {
+    console.log(
+      "approving token %s amount %s spender %s",
+      data.token,
+      formatAmount(totalAmount, 18, 2),
+      batchSenderAddress
+    );
+    const tx = await tokenContract.approve(batchSenderAddress, totalAmount);
+    console.log("sent approve txn %s, waiting...", tx.hash);
+    await tx.wait();
+    console.log("done");
+  }
+
+  const seenRecipients = new Set();
+  for (const recipient of recipients) {
+    if (seenRecipients.has(recipient)) {
+      throw new Error(`Duplicated recipient ${recipient}`);
     }
+    seenRecipients.add(recipient);
+  }
 
-    const signerAddress = await signer.getAddress();
-    console.log("signer address: %s", signerAddress);
+  const txHashes = [];
+  const batchesInProgress = readBatchesInProgress(data.id);
+  const batchesCount = Math.ceil(amounts.length / batchSize);
+  const lastSentBatchIndex = batchesInProgress[data.id].lastSentBatchIndex;
 
-    const batchSender = await ethers.getContractAt(BatchSenderAbi, batchSenderAddress, signer);
-    const tokenContract = await ethers.getContractAt("MintableToken", data.token, signer);
-    const batchSize = 150;
+  const firstRecipientIndex = (lastSentBatchIndex + 1) * batchSize;
+  if (lastSentBatchIndex >= 0) {
+    const firstRecipientIndex = (lastSentBatchIndex + 1) * batchSize;
+    const firstRecipient = recipients[firstRecipientIndex];
+    console.warn(
+      "WARN: lastSentBatchIndex is %s, starting from index %s, first recipient: %s (%s)",
+      lastSentBatchIndex,
+      lastSentBatchIndex + 1,
+      firstRecipientIndex,
+      firstRecipient
+    );
+    await setTimeout(5000);
+  }
 
-    const totalAmount = amounts.reduce((acc, amount) => {
-      return acc.add(amount);
-    }, bigNumberify(0));
+  const batches = [];
+  for (const batchIndex of range(lastSentBatchIndex + 1, batchesCount)) {
+    const from = batchIndex * batchSize;
+    const to = Math.min(from + batchSize, amounts.length);
+    const batchAmounts = amounts.slice(from, to);
+    const batchRecipients = recipients.slice(from, to);
+    batches.push({
+      from,
+      to,
+      batchAmounts,
+      batchRecipients,
+      batchIndex,
+    });
+  }
 
-    const balance = await tokenContract.balanceOf(signerAddress);
-    if (balance.lt(totalAmount)) {
-      throw new Error(
-        `Current balance ${formatAmount(balance, 18, 2, true)} is lower than required ${formatAmount(
-          totalAmount,
-          18,
-          2,
-          true
-        )}`
-      );
-    }
-    console.log("balance is %s", formatAmount(balance, 18, 2, true));
+  console.log("running simulation");
+  for (const [i, { batchIndex, from, to, batchAmounts, batchRecipients }] of batches.entries()) {
+    console.log("simulating sending batch %s-%s token %s typeId %s", from, to, data.token, data.distributionTypeId);
 
-    const allowance = await tokenContract.allowance(signerAddress, batchSenderAddress);
-    console.log("total amount to send: %s", formatAmount(totalAmount, 18, 2, true));
-    console.log("current allowance is %s", formatAmount(allowance, 18, 2, true));
-    if (allowance.lt(totalAmount)) {
+    for (const [j, recipient] of batchRecipients.entries()) {
       console.log(
-        "approving token %s amount %s spender %s",
-        data.token,
-        formatAmount(totalAmount, 18, 2),
-        batchSenderAddress
+        "%s recipient %s amount %s (%s)",
+        firstRecipientIndex + i * batchSize + j,
+        recipient,
+        formatAmount(batchAmounts[j], 18, 2, true),
+        batchAmounts[j]
       );
-      const tx = await tokenContract.approve(batchSenderAddress, totalAmount);
-      console.log("sent approve txn %s, waiting...", tx.hash);
-      await tx.wait();
-      console.log("done");
     }
 
-    const seenRecipients = new Set();
-    const txHashes = [];
-    const batchesInProgress = readBatchesInProgress(data.id);
-    const batchesCount = Math.ceil(amounts.length / batchSize);
-    const lastSentBatchIndex = batchesInProgress[data.id].lastSentBatchIndex;
+    const result = await batchSender.callStatic.sendAndEmit(
+      data.token,
+      batchRecipients,
+      batchAmounts,
+      data.distributionTypeId
+    );
+    console.log("simulation batch %s done, result %s", batchIndex, result);
+  }
 
-    let recipientI = (lastSentBatchIndex + 1) * batchSize;
-    if (lastSentBatchIndex >= 0) {
-      const firstRecipientIndex = (lastSentBatchIndex + 1) * batchSize;
-      const firstRecipient = recipients[firstRecipientIndex];
-      console.warn(
-        "WARN: lastSentBatchIndex is %s, starting from index %s, first recipient: %s (%s)",
-        lastSentBatchIndex,
-        lastSentBatchIndex + 1,
-        firstRecipientIndex,
-        firstRecipient
-      );
-      await setTimeout(5000);
-    }
+  if (!write) {
+    ({ write } = await prompts({
+      type: "confirm",
+      name: "write",
+      message: "Do you want to execute the transactions?",
+    }));
+  }
 
-    for (const batchIndex of range(lastSentBatchIndex + 1, batchesCount)) {
-      const from = batchIndex * batchSize;
-      const to = Math.min(from + batchSize, amounts.length);
-      const batchAmounts = amounts.slice(from, to);
-      const batchRecipients = recipients.slice(from, to);
-
+  if (write) {
+    for (const [i, { batchIndex, from, to, batchAmounts, batchRecipients }] of batches.entries()) {
       console.log("sending batch %s-%s token %s typeId %s", from, to, data.token, data.distributionTypeId);
 
       for (const [j, recipient] of batchRecipients.entries()) {
-        if (seenRecipients.has(recipient)) {
-          throw new Error(`Duplicated recipient ${recipient} batch ${from}-${to} (exclusive)`);
-        }
         console.log(
           "%s recipient %s amount %s (%s)",
-          recipientI++,
+          firstRecipientIndex + i * batchSize + j,
           recipient,
           formatAmount(batchAmounts[j], 18, 2, true),
           batchAmounts[j]
         );
       }
 
-      if (dryRun) {
-        const result = await batchSender.callStatic.sendAndEmit(
-          data.token,
-          batchRecipients,
-          batchAmounts,
-          data.distributionTypeId
-        );
-        console.log("result %s", result);
-      } else {
-        const gasLimit = await batchSender.estimateGas.sendAndEmit(
-          data.token,
-          batchRecipients,
-          batchAmounts,
-          data.distributionTypeId
-        );
+      const gasLimit = await batchSender.estimateGas.sendAndEmit(
+        data.token,
+        batchRecipients,
+        batchAmounts,
+        data.distributionTypeId
+      );
 
-        const tx = await batchSender.sendAndEmit(data.token, batchRecipients, batchAmounts, data.distributionTypeId, {
-          gasLimit: gasLimit.add(1_000_000),
-        });
-        console.log("sent batch txn %s, waiting...", tx.hash);
-        txHashes.push(tx.hash);
-        await tx.wait();
-      }
+      const tx = await batchSender.sendAndEmit(data.token, batchRecipients, batchAmounts, data.distributionTypeId, {
+        gasLimit: gasLimit.add(1_000_000),
+      });
+      console.log("sent batch txn %s, waiting...", tx.hash);
+      txHashes.push(tx.hash);
+      await tx.wait();
       console.log("batch %s done", batchIndex);
 
-      if (!dryRun) {
-        batchesInProgress[data.id].lastSentBatchIndex = batchIndex;
-        saveBatchesInProgress(batchesInProgress);
-      }
+      batchesInProgress[data.id].lastSentBatchIndex = batchIndex;
+      saveBatchesInProgress(batchesInProgress);
     }
 
     if (txHashes.length) {
@@ -206,12 +229,10 @@ async function main() {
       }
     }
 
-    if (!dryRun) {
-      migrations[data.id] = Math.floor(Date.now() / 1000);
-      saveMigrations(migrations);
-      delete batchesInProgress[data.id];
-      saveBatchesInProgress(batchesInProgress);
-    }
+    migrations[data.id] = Math.floor(Date.now() / 1000);
+    saveMigrations(migrations);
+    delete batchesInProgress[data.id];
+    saveBatchesInProgress(batchesInProgress);
   } else {
     console.warn("WARN: read-only mode. skip sending transaction");
   }
@@ -272,14 +293,23 @@ function readBatchesInProgress(dataId: string): BatchesInProgress {
   return ret;
 }
 
-function readDistributionFile() {
-  const filename = process.env.FILENAME;
-
-  if (!filename) {
-    throw new Error("FILENAME is required");
+async function readDistributionFile() {
+  let filepath: string;
+  if (process.env.FILENAME) {
+    const filename = process.env.FILENAME;
+    filepath = filename.startsWith("/") ? filename : path.join(process.cwd(), filename);
+  } else {
+    const files = globSync(`${__dirname}/distributions/*/*.json`).filter((file) => {
+      return file.includes(hre.network.name);
+    });
+    ({ filepath } = await prompts({
+      type: "select",
+      name: "filepath",
+      message: "Select distribution file",
+      choices: files.map((file) => ({ title: file.split("/distributions/")[1], value: file })),
+    }));
   }
 
-  const filepath = filename.startsWith("/") ? filename : path.join(process.cwd(), filename);
   console.log("reading file %s", filepath);
   const data: {
     token: string;

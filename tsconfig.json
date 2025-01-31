@@ -15,6 +15,6 @@
     "rootDirs": ["./src", "./scripts", "./test"]
   },
   "exclude": ["dist", "node_modules"],
-  "include": ["./test", "./src", "./scripts"],
+  "include": ["./test", "./src", "./scripts", "./global.d.ts"],
   "files": ["./hardhat.config.ts"]
 }

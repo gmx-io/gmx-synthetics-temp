@@ -28,7 +28,7 @@ const func = createDeployFunction({
       "isOracleProviderEnabledKey"
     );
   },
-  id: "ChainlinkDataStreamProvider_3",
+  id: "ChainlinkDataStreamProvider_4",
 });
 
 func.dependencies = func.dependencies.concat(["MockDataStreamVerifier"]);
