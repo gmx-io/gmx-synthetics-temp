@@ -2,12 +2,12 @@ import { expect } from "chai";
 import { contractAt } from "./deploy";
 import { hashData } from "./hash";
 
-export async function getBalanceOf(tokenAddress, account) {
+export async function getBalanceOf(tokenAddress: string, account: string) {
   const token = await contractAt("MarketToken", tokenAddress);
   return await token.balanceOf(account);
 }
 
-export async function getSupplyOf(tokenAddress) {
+export async function getSupplyOf(tokenAddress: string) {
   const token = await contractAt("MarketToken", tokenAddress);
   return await token.totalSupply();
 }

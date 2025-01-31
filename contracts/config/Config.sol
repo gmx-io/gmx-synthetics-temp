@@ -569,6 +569,9 @@ contract Config is ReentrancyGuard, RoleModule, BasicMulticall {
         allowedLimitedBaseKeys[Keys.MAX_POOL_USD_FOR_DEPOSIT] = true;
         allowedLimitedBaseKeys[Keys.MAX_OPEN_INTEREST] = true;
 
+        allowedLimitedBaseKeys[Keys.GLV_MAX_MARKET_TOKEN_BALANCE_USD] = true;
+        allowedLimitedBaseKeys[Keys.GLV_MAX_MARKET_TOKEN_BALANCE_AMOUNT] = true;
+
         allowedLimitedBaseKeys[Keys.PRO_TRADER_TIER] = true;
     }
 

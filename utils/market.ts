@@ -73,7 +73,7 @@ export function getMarketTokenAddress(
   marketFactoryAddress: string,
   roleStoreAddress: string,
   dataStoreAddress: string
-) {
+): string {
   const salt = hashData(
     ["string", "address", "address", "address", "bytes32"],
     ["GMX_MARKET", indexToken, longToken, shortToken, marketType]

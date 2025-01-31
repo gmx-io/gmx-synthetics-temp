@@ -46,6 +46,7 @@
     "typescript": "^4.8.4"
   },
   "dependencies": {
+    "@gelatonetwork/relay-context": "^4.0.0",
     "@apollo/client": "^3.9.3",
     "@chainlink/contracts": "^1.1.0",
     "@nomicfoundation/hardhat-foundry": "^1.1.1",

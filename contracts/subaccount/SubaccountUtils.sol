@@ -21,7 +21,7 @@ library SubaccountUtils {
         EventEmitter eventEmitter,
         address account,
         address subaccount
-    ) internal {
+    ) external {
         bytes32 setKey = Keys.subaccountListKey(account);
         dataStore.addAddress(setKey, subaccount);
 
@@ -44,7 +44,7 @@ library SubaccountUtils {
         EventEmitter eventEmitter,
         address account,
         address subaccount
-    ) internal {
+    ) external {
         bytes32 setKey = Keys.subaccountListKey(account);
         dataStore.removeAddress(setKey, subaccount);
 
@@ -62,16 +62,18 @@ library SubaccountUtils {
         );
     }
 
-    function incrementSubaccountActionCount(
+    function handleSubaccountAction(
         DataStore dataStore,
         EventEmitter eventEmitter,
         address account,
         address subaccount,
         bytes32 actionType
-    ) internal {
+    ) external {
+        validateSubaccount(dataStore, account, subaccount);
+
         bytes32 key = Keys.subaccountActionCountKey(account, subaccount, actionType);
         uint256 nextValue = dataStore.incrementUint(key, 1);
-        validateSubaccountActionCount(dataStore, account, subaccount, actionType, nextValue);
+        validateSubaccountActionCountAndExpiresAt(dataStore, account, subaccount, actionType, nextValue);
 
         EventUtils.EventLogData memory eventData;
 
@@ -93,6 +95,37 @@ library SubaccountUtils {
         );
     }
 
+    function setSubaccountExpiresAt(
+        DataStore dataStore,
+        EventEmitter eventEmitter,
+        address account,
+        address subaccount,
+        bytes32 actionType,
+        uint256 expiresAt
+    ) external {
+        bytes32 key = Keys.subaccountExpiresAtKey(account, subaccount, actionType);
+        dataStore.setUint(key, expiresAt);
+
+        EventUtils.EventLogData memory eventData;
+
+        eventData.addressItems.initItems(2);
+        eventData.addressItems.setItem(0, "account", account);
+        eventData.addressItems.setItem(1, "subaccount", subaccount);
+
+        eventData.uintItems.initItems(1);
+        eventData.uintItems.setItem(0, "expiresAt", expiresAt);
+
+        eventData.bytes32Items.initItems(1);
+        eventData.bytes32Items.setItem(0, "actionType", actionType);
+
+        eventEmitter.emitEventLog2(
+            "SetSubaccountExpiresAt",
+            Cast.toBytes32(account),
+            Cast.toBytes32(subaccount),
+            eventData
+        );
+    }
+
     function setMaxAllowedSubaccountActionCount(
         DataStore dataStore,
         EventEmitter eventEmitter,
@@ -100,7 +133,7 @@ library SubaccountUtils {
         address subaccount,
         bytes32 actionType,
         uint256 maxAllowedCount
-    ) internal {
+    ) external {
         bytes32 key = Keys.maxAllowedSubaccountActionCountKey(account, subaccount, actionType);
         dataStore.setUint(key, maxAllowedCount);
 
@@ -113,6 +146,9 @@ library SubaccountUtils {
         eventData.uintItems.initItems(1);
         eventData.uintItems.setItem(0, "maxAllowedCount", maxAllowedCount);
 
+        eventData.bytes32Items.initItems(1);
+        eventData.bytes32Items.setItem(0, "actionType", actionType);
+
         eventEmitter.emitEventLog2(
             "SetMaxAllowedSubaccountActionCount",
             Cast.toBytes32(account),
@@ -121,15 +157,23 @@ library SubaccountUtils {
         );
     }
 
-    function validateSubaccountActionCount(
+    function validateSubaccountActionCountAndExpiresAt(
         DataStore dataStore,
         address account,
         address subaccount,
         bytes32 actionType,
         uint256 count
     ) internal view {
-        bytes32 key = Keys.maxAllowedSubaccountActionCountKey(account, subaccount, actionType);
-        uint256 maxCount = dataStore.getUint(key);
+        bytes32 expiresAtKey = Keys.subaccountExpiresAtKey(account, subaccount, actionType);
+        uint256 expiresAt = dataStore.getUint(expiresAtKey);
+
+        if (block.timestamp > expiresAt) {
+            revert Errors.SubaccountApprovalExpired(account, subaccount, expiresAt, block.timestamp);
+        }
+
+        bytes32 maxCountKey = Keys.maxAllowedSubaccountActionCountKey(account, subaccount, actionType);
+        uint256 maxCount = dataStore.getUint(maxCountKey);
+
         if (count > maxCount) {
             revert Errors.MaxSubaccountActionCountExceeded(account, subaccount, count, maxCount);
         }
