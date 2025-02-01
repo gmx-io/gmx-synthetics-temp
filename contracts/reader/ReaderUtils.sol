@@ -66,12 +66,12 @@ library ReaderUtils {
         address account,
         uint256 start,
         uint256 end
-    ) external view returns (Order.Props[] memory) {
+    ) external view returns (OrderInfo[] memory) {
         bytes32[] memory orderKeys = OrderStoreUtils.getAccountOrderKeys(dataStore, account, start, end);
-        Order.Props[] memory orders = new Order.Props[](orderKeys.length);
+        OrderInfo[] memory orders = new OrderInfo[](orderKeys.length);
         for (uint256 i; i < orderKeys.length; i++) {
             bytes32 orderKey = orderKeys[i];
-            orders[i] = OrderStoreUtils.get(dataStore, orderKey);
+            orders[i] = OrderInfo(orderKey, OrderStoreUtils.get(dataStore, orderKey));
         }
 
         return orders;

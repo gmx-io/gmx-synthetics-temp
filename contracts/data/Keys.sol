@@ -378,11 +378,14 @@ library Keys {
     bytes32 public constant CLAIMABLE_COLLATERAL_AMOUNT = keccak256(abi.encode("CLAIMABLE_COLLATERAL_AMOUNT"));
     // @dev key for claimable collateral factor
     bytes32 public constant CLAIMABLE_COLLATERAL_FACTOR = keccak256(abi.encode("CLAIMABLE_COLLATERAL_FACTOR"));
+    // @dev key for claimable collateral reduction factor
+    bytes32 public constant CLAIMABLE_COLLATERAL_REDUCTION_FACTOR = keccak256(abi.encode("CLAIMABLE_COLLATERAL_REDUCTION_FACTOR"));
     // @dev key for claimable collateral time divisor
     bytes32 public constant CLAIMABLE_COLLATERAL_TIME_DIVISOR = keccak256(abi.encode("CLAIMABLE_COLLATERAL_TIME_DIVISOR"));
+    // @dev key for claimable collateral delay
+    bytes32 public constant CLAIMABLE_COLLATERAL_DELAY = keccak256(abi.encode("CLAIMABLE_COLLATERAL_DELAY"));
     // @dev key for claimed collateral amount
     bytes32 public constant CLAIMED_COLLATERAL_AMOUNT = keccak256(abi.encode("CLAIMED_COLLATERAL_AMOUNT"));
-    bytes32 public constant IGNORE_OPEN_INTEREST_FOR_USAGE_FACTOR = keccak256(abi.encode("IGNORE_OPEN_INTEREST_FOR_USAGE_FACTOR"));
     // @dev key for optimal usage factor
     bytes32 public constant OPTIMAL_USAGE_FACTOR = keccak256(abi.encode("OPTIMAL_USAGE_FACTOR"));
     // @dev key for base borrowing factor
@@ -466,6 +469,12 @@ library Keys {
     bytes32 public constant BUYBACK_MAX_PRICE_AGE = keccak256(abi.encode("BUYBACK_MAX_PRICE_AGE"));
     // @dev key for the buyback withdrawable fees
     bytes32 public constant WITHDRAWABLE_BUYBACK_TOKEN_AMOUNT = keccak256(abi.encode("WITHDRAWABLE_BUYBACK_TOKEN_AMOUNT"));
+
+    // @dev key for user's balance for a source chain, recorded under the user's virtual account
+    bytes32 public constant SOURCE_CHAIN_BALANCE = keccak256(abi.encode("SOURCE_CHAIN_BALANCE"));
+
+    // @dev key for the maximum length for data list array of bytes32
+    bytes32 public constant MAX_DATA_LENGTH = keccak256(abi.encode("MAX_DATA_LENGTH"));
 
     // @dev constant for user initiated cancel reason
     string public constant USER_INITIATED_CANCEL = "USER_INITIATED_CANCEL";
@@ -1081,13 +1090,13 @@ library Keys {
 
     // @dev key for position fee factor
     // @param market the market address to check
-    // @param forPositiveImpact whether the fee is for an action that has a positive price impact
+    // @param balanceWasImproved whether the fee is for an action that has improved the balance
     // @return key for position fee factor
-    function positionFeeFactorKey(address market, bool forPositiveImpact) internal pure returns (bytes32) {
+    function positionFeeFactorKey(address market, bool balanceWasImproved) internal pure returns (bytes32) {
         return keccak256(abi.encode(
             POSITION_FEE_FACTOR,
             market,
-            forPositiveImpact
+            balanceWasImproved
         ));
     }
 
@@ -1110,7 +1119,6 @@ library Keys {
 
     // @dev key for liquidation fee factor
     // @param market the market address to check
-    // @param forPositiveImpact whether the fee is for an action that has a positive price impact
     // @return key for liquidation fee factor
     function liquidationFeeFactorKey(address market) internal pure returns (bytes32) {
         return keccak256(abi.encode(
@@ -1144,12 +1152,13 @@ library Keys {
 
     // @dev key for swap fee factor
     // @param market the market address to check
+    // @param balanceWasImproved whether the fee is for an action that has improved the balance
     // @return key for swap fee factor
-    function swapFeeFactorKey(address market, bool forPositiveImpact) internal pure returns (bytes32) {
+    function swapFeeFactorKey(address market, bool balanceWasImproved) internal pure returns (bytes32) {
         return keccak256(abi.encode(
             SWAP_FEE_FACTOR,
             market,
-            forPositiveImpact
+            balanceWasImproved
         ));
     }
 
@@ -1163,19 +1172,27 @@ library Keys {
         ));
     }
 
-    function depositFeeFactorKey(address market, bool forPositiveImpact) internal pure returns (bytes32) {
+    // @dev key for deposit fee factor
+    // @param market the market address to check
+    // @param balanceWasImproved whether the fee is for an action that has improved the balance
+    // @return key for deposit fee factor
+    function depositFeeFactorKey(address market, bool balanceWasImproved) internal pure returns (bytes32) {
         return keccak256(abi.encode(
             DEPOSIT_FEE_FACTOR,
             market,
-            forPositiveImpact
+            balanceWasImproved
         ));
     }
 
-    function withdrawalFeeFactorKey(address market, bool forPositiveImpact) internal pure returns (bytes32) {
+    // @dev key for withdrawal fee factor
+    // @param market the market address to check
+    // @param balanceWasImproved whether the fee is for an action that has improved the balance
+    // @return key for withdrawal fee factor
+    function withdrawalFeeFactorKey(address market, bool balanceWasImproved) internal pure returns (bytes32) {
         return keccak256(abi.encode(
             WITHDRAWAL_FEE_FACTOR,
             market,
-            forPositiveImpact
+            balanceWasImproved
         ));
     }
 
@@ -1599,6 +1616,22 @@ library Keys {
     function claimableCollateralFactorKey(address market, address token, uint256 timeKey, address account) internal pure returns (bytes32) {
         return keccak256(abi.encode(
             CLAIMABLE_COLLATERAL_FACTOR,
+            market,
+            token,
+            timeKey,
+            account
+        ));
+    }
+
+    // @dev key for claimable collateral reduction factor for a timeKey for an account
+    // @param market the market to check
+    // @param token the token to check
+    // @param timeKey the time key for the claimable factor
+    // @param account the account to check
+    // @return key for claimable funding factor
+    function claimableCollateralReductionFactorKey(address market, address token, uint256 timeKey, address account) internal pure returns (bytes32) {
+        return keccak256(abi.encode(
+            CLAIMABLE_COLLATERAL_REDUCTION_FACTOR,
             market,
             token,
             timeKey,
@@ -2073,6 +2106,18 @@ library Keys {
     function buybackMaxPriceImpactFactorKey(address token) internal pure returns (bytes32) {
         return keccak256(abi.encode(
             BUYBACK_MAX_PRICE_IMPACT_FACTOR,
+            token
+        ));
+    }
+
+    // @dev key for user's balance for a source chain, recorded under the user's virtual account
+    // @param virtualAccount the virtual account for which to retreive the user balance key
+    // @param token the token for which to retreive the user balance key
+    // @return key for a source chain balance for a given user and token
+    function sourceChainBalanceKey(address virtualAccount, address token) internal pure returns (bytes32) {
+        return keccak256(abi.encode(
+            SOURCE_CHAIN_BALANCE,
+            virtualAccount,
             token
         ));
     }

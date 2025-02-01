@@ -141,7 +141,8 @@ library FeeSwapUtils {
             false, // isLong
             false, // shouldUnwrapNativeToken
             false, // autoCancel
-            bytes32(0) // referralCode
+            bytes32(0), // referralCode
+            new bytes32[](0) // dataList
         );
 
         return params;

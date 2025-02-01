@@ -19,7 +19,7 @@ contract MarketStoreUtilsTest {
         MarketStoreUtils.set(dataStore, key, salt, market);
     }
 
-    function removeMarket(DataStore dataStore, address key) external {
-        MarketStoreUtils.remove(dataStore, key);
+    function removeMarket(DataStore dataStore, address key, bytes32 salt) external {
+        MarketStoreUtils.remove(dataStore, key, salt);
     }
 }

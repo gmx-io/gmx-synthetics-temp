@@ -36,6 +36,8 @@ library GlvDepositStoreUtils {
     bytes32 public constant SHOULD_UNWRAP_NATIVE_TOKEN = keccak256(abi.encode("SHOULD_UNWRAP_NATIVE_TOKEN"));
     bytes32 public constant IS_MARKET_TOKEN_DEPOSIT = keccak256(abi.encode("IS_MARKET_TOKEN_DEPOSIT"));
 
+    bytes32 public constant DATA_LIST = keccak256(abi.encode("DATA_LIST"));
+
     function get(DataStore dataStore, bytes32 key) external view returns (GlvDeposit.Props memory) {
         GlvDeposit.Props memory glvDeposit;
         if (!dataStore.containsBytes32(Keys.GLV_DEPOSIT_LIST, key)) {
@@ -116,6 +118,10 @@ library GlvDepositStoreUtils {
 
         glvDeposit.setIsMarketTokenDeposit(dataStore.getBool(
             keccak256(abi.encode(key, IS_MARKET_TOKEN_DEPOSIT))
+        ));
+
+        glvDeposit.setDataList(dataStore.getBytes32Array(
+            keccak256(abi.encode(key, DATA_LIST))
         ));
 
         return glvDeposit;
@@ -226,6 +232,11 @@ library GlvDepositStoreUtils {
             keccak256(abi.encode(key, IS_MARKET_TOKEN_DEPOSIT)),
             glvDeposit.isMarketTokenDeposit()
         );
+
+        dataStore.setBytes32Array(
+            keccak256(abi.encode(key, DATA_LIST)),
+            glvDeposit.dataList()
+        );
     }
 
     function remove(DataStore dataStore, bytes32 key, address account) external {
@@ -317,6 +328,10 @@ library GlvDepositStoreUtils {
 
         dataStore.removeBool(
             keccak256(abi.encode(key, IS_MARKET_TOKEN_DEPOSIT))
+        );
+
+        dataStore.removeBytes32Array(
+            keccak256(abi.encode(key, DATA_LIST))
         );
     }
 

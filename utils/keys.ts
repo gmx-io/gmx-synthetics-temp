@@ -71,7 +71,9 @@ export const CLAIMABLE_FEE_AMOUNT = hashString("CLAIMABLE_FEE_AMOUNT");
 export const CLAIMABLE_FUNDING_AMOUNT = hashString("CLAIMABLE_FUNDING_AMOUNT");
 export const CLAIMABLE_COLLATERAL_AMOUNT = hashString("CLAIMABLE_COLLATERAL_AMOUNT");
 export const CLAIMABLE_COLLATERAL_FACTOR = hashString("CLAIMABLE_COLLATERAL_FACTOR");
+export const CLAIMABLE_COLLATERAL_REDUCTION_FACTOR = hashString("CLAIMABLE_COLLATERAL_REDUCTION_FACTOR");
 export const CLAIMABLE_COLLATERAL_TIME_DIVISOR = hashString("CLAIMABLE_COLLATERAL_TIME_DIVISOR");
+export const CLAIMABLE_COLLATERAL_DELAY = hashString("CLAIMABLE_COLLATERAL_DELAY");
 
 export const CLAIMABLE_UI_FEE_AMOUNT = hashString("CLAIMABLE_UI_FEE_AMOUNT");
 export const AFFILIATE_REWARD = hashString("AFFILIATE_REWARD");
@@ -134,6 +136,7 @@ export const MAX_POOL_USD_FOR_DEPOSIT = hashString("MAX_POOL_USD_FOR_DEPOSIT");
 export const MAX_OPEN_INTEREST = hashString("MAX_OPEN_INTEREST");
 
 export const POSITION_IMPACT_POOL_AMOUNT = hashString("POSITION_IMPACT_POOL_AMOUNT");
+export const PENDING_IMPACT_AMOUNT = hashString("PENDING_IMPACT_AMOUNT");
 export const MIN_POSITION_IMPACT_POOL_AMOUNT = hashString("MIN_POSITION_IMPACT_POOL_AMOUNT");
 export const POSITION_IMPACT_POOL_DISTRIBUTION_RATE = hashString("POSITION_IMPACT_POOL_DISTRIBUTION_RATE");
 export const POSITION_IMPACT_POOL_DISTRIBUTED_AT = hashString("POSITION_IMPACT_POOL_DISTRIBUTED_AT");
@@ -191,7 +194,6 @@ export const FUNDING_UPDATED_AT = hashString("FUNDING_UPDATED_AT");
 export const OPTIMAL_USAGE_FACTOR = hashString("OPTIMAL_USAGE_FACTOR");
 export const BASE_BORROWING_FACTOR = hashString("BASE_BORROWING_FACTOR");
 export const ABOVE_OPTIMAL_USAGE_BORROWING_FACTOR = hashString("ABOVE_OPTIMAL_USAGE_BORROWING_FACTOR");
-export const IGNORE_OPEN_INTEREST_FOR_USAGE_FACTOR = hashString("IGNORE_OPEN_INTEREST_FOR_USAGE_FACTOR");
 
 export const BORROWING_FACTOR = hashString("BORROWING_FACTOR");
 export const BORROWING_EXPONENT_FACTOR = hashString("BORROWING_EXPONENT_FACTOR");
@@ -255,8 +257,11 @@ export const BUYBACK_GMX_FACTOR = hashString("BUYBACK_GMX_FACTOR");
 export const BUYBACK_MAX_PRICE_IMPACT_FACTOR = hashString("BUYBACK_MAX_PRICE_IMPACT_FACTOR");
 export const BUYBACK_MAX_PRICE_AGE = hashString("BUYBACK_MAX_PRICE_AGE");
 export const WITHDRAWABLE_BUYBACK_TOKEN_AMOUNT = hashString("WITHDRAWABLE_BUYBACK_TOKEN_AMOUNT");
+export const SOURCE_CHAIN_BALANCE = hashString("SOURCE_CHAIN_BALANCE");
 
 export const VALID_FROM_TIME = hashString("VALID_FROM_TIME");
+
+export const MAX_DATA_LENGTH = hashString("MAX_DATA_LENGTH");
 
 export function accountDepositListKey(account) {
   return hashData(["bytes32", "address"], [ACCOUNT_DEPOSIT_LIST, account]);
@@ -354,6 +359,18 @@ export function claimableCollateralFactorForAccountKey(
   return hashData(
     ["bytes32", "address", "address", "uint256", "address"],
     [CLAIMABLE_COLLATERAL_FACTOR, market, token, timeKey, account]
+  );
+}
+
+export function claimableCollateralReductionFactorForAccountKey(
+  market: string,
+  token: string,
+  timeKey: number,
+  account: string
+) {
+  return hashData(
+    ["bytes32", "address", "address", "uint256", "address"],
+    [CLAIMABLE_COLLATERAL_REDUCTION_FACTOR, market, token, timeKey, account]
   );
 }
 
@@ -499,16 +516,16 @@ export function swapImpactPoolAmountKey(market: string, token: string) {
   return hashData(["bytes32", "address", "address"], [SWAP_IMPACT_POOL_AMOUNT, market, token]);
 }
 
-export function swapFeeFactorKey(market: string, forPositiveImpact: boolean) {
-  return hashData(["bytes32", "address", "bool"], [SWAP_FEE_FACTOR, market, forPositiveImpact]);
+export function swapFeeFactorKey(market: string, balanceWasImproved: boolean) {
+  return hashData(["bytes32", "address", "bool"], [SWAP_FEE_FACTOR, market, balanceWasImproved]);
 }
 
-export function depositFeeFactorKey(market: string, forPositiveImpact: boolean) {
-  return hashData(["bytes32", "address", "bool"], [DEPOSIT_FEE_FACTOR, market, forPositiveImpact]);
+export function depositFeeFactorKey(market: string, balanceWasImproved: boolean) {
+  return hashData(["bytes32", "address", "bool"], [DEPOSIT_FEE_FACTOR, market, balanceWasImproved]);
 }
 
-export function withdrawalFeeFactorKey(market: string, forPositiveImpact: boolean) {
-  return hashData(["bytes32", "address", "bool"], [WITHDRAWAL_FEE_FACTOR, market, forPositiveImpact]);
+export function withdrawalFeeFactorKey(market: string, balanceWasImproved: boolean) {
+  return hashData(["bytes32", "address", "bool"], [WITHDRAWAL_FEE_FACTOR, market, balanceWasImproved]);
 }
 
 export function atomicSwapFeeFactorKey(market: string) {
@@ -539,8 +556,8 @@ export function maxPositionImpactFactorForLiquidationsKey(market: string) {
   return hashData(["bytes32", "address"], [MAX_POSITION_IMPACT_FACTOR_FOR_LIQUIDATIONS, market]);
 }
 
-export function positionFeeFactorKey(market: string, forPositiveImpact: boolean) {
-  return hashData(["bytes32", "address", "bool"], [POSITION_FEE_FACTOR, market, forPositiveImpact]);
+export function positionFeeFactorKey(market: string, balanceWasImproved: boolean) {
+  return hashData(["bytes32", "address", "bool"], [POSITION_FEE_FACTOR, market, balanceWasImproved]);
 }
 
 export function proTraderTierKey(account: string) {
@@ -789,4 +806,8 @@ export function buybackMaxPriceImpactFactorKey(token: string) {
 
 export function withdrawableBuybackTokenAmountKey(buybackToken: string) {
   return hashData(["bytes32", "address"], [WITHDRAWABLE_BUYBACK_TOKEN_AMOUNT, buybackToken]);
+}
+
+export function sourceChainBalanceKey(virtualAccount: string, token: string) {
+  return hashData(["bytes32", "address", "address"], [SOURCE_CHAIN_BALANCE, virtualAccount, token]);
 }

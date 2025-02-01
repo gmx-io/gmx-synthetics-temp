@@ -162,6 +162,8 @@ describe("Exchange.Deposit", () => {
   });
 
   it("createDeposit", async () => {
+    await dataStore.setUint(keys.MAX_DATA_LENGTH, 256);
+    const dataList = [ethers.utils.formatBytes32String("customData")];
     const params = {
       receiver: user1,
       callbackContract: user2,
@@ -175,6 +177,7 @@ describe("Exchange.Deposit", () => {
       executionFee: "0",
       callbackGasLimit: "200000",
       gasUsageLabel: "createDeposit",
+      dataList,
     };
 
     await createDeposit(fixture, {
@@ -201,6 +204,7 @@ describe("Exchange.Deposit", () => {
     expect(deposit.numbers.executionFee).eq("500");
     expect(deposit.numbers.callbackGasLimit).eq("200000");
     expect(deposit.flags.shouldUnwrapNativeToken).eq(true);
+    expect(deposit._dataList).deep.eq(dataList);
   });
 
   it("cancelDeposit", async () => {

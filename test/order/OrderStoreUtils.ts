@@ -53,6 +53,7 @@ describe("OrderStoreUtils", () => {
         "numbers.orderType": OrderType.LimitDecrease,
         "numbers.decreasePositionSwapType": DecreasePositionSwapType.SwapCollateralTokenToPnlToken,
       },
+      expectedPropsLength: 4,
     });
   });
 });

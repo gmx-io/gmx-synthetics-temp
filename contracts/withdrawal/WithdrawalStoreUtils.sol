@@ -31,6 +31,8 @@ library WithdrawalStoreUtils {
 
     bytes32 public constant SHOULD_UNWRAP_NATIVE_TOKEN = keccak256(abi.encode("SHOULD_UNWRAP_NATIVE_TOKEN"));
 
+    bytes32 public constant DATA_LIST = keccak256(abi.encode("DATA_LIST"));
+
     function get(DataStore dataStore, bytes32 key) external view returns (Withdrawal.Props memory) {
         Withdrawal.Props memory withdrawal;
         if (!dataStore.containsBytes32(Keys.WITHDRAWAL_LIST, key)) {
@@ -91,6 +93,10 @@ library WithdrawalStoreUtils {
 
         withdrawal.setShouldUnwrapNativeToken(dataStore.getBool(
             keccak256(abi.encode(key, SHOULD_UNWRAP_NATIVE_TOKEN))
+        ));
+
+        withdrawal.setDataList(dataStore.getBytes32Array(
+            keccak256(abi.encode(key, DATA_LIST))
         ));
 
         return withdrawal;
@@ -175,6 +181,11 @@ library WithdrawalStoreUtils {
         dataStore.setBool(
             keccak256(abi.encode(key, SHOULD_UNWRAP_NATIVE_TOKEN)),
             withdrawal.shouldUnwrapNativeToken()
+        );
+
+        dataStore.setBytes32Array(
+            keccak256(abi.encode(key, DATA_LIST)),
+            withdrawal.dataList()
         );
     }
 

@@ -351,6 +351,26 @@ library MarketEventUtils {
         );
     }
 
+    function emitBorrowing(
+        EventEmitter eventEmitter,
+        address market,
+        uint256 borrowingFactorPerSecond
+    ) external {
+        EventUtils.EventLogData memory eventData;
+
+        eventData.addressItems.initItems(1);
+        eventData.addressItems.setItem(0, "market", market);
+
+        eventData.uintItems.initItems(1);
+        eventData.uintItems.setItem(0, "borrowingFactorPerSecond", borrowingFactorPerSecond);
+
+        eventEmitter.emitEventLog1(
+            "Borrowing",
+            Cast.toBytes32(market),
+            eventData
+        );
+    }
+
     function emitBorrowingFactorUpdated(
         EventEmitter eventEmitter,
         address market,
@@ -372,6 +392,26 @@ library MarketEventUtils {
 
         eventEmitter.emitEventLog1(
             "CumulativeBorrowingFactorUpdated",
+            Cast.toBytes32(market),
+            eventData
+        );
+    }
+
+    function emitFunding(
+        EventEmitter eventEmitter,
+        address market,
+        uint256 fundingFactorPerSecond
+    ) external {
+        EventUtils.EventLogData memory eventData;
+
+        eventData.addressItems.initItems(1);
+        eventData.addressItems.setItem(0, "market", market);
+
+        eventData.uintItems.initItems(1);
+        eventData.uintItems.setItem(0, "fundingFactorPerSecond", fundingFactorPerSecond);
+
+        eventEmitter.emitEventLog1(
+            "Funding",
             Cast.toBytes32(market),
             eventData
         );

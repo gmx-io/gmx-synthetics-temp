@@ -6,6 +6,7 @@ library Shift {
     struct Props {
         Addresses addresses;
         Numbers numbers;
+        bytes32[] _dataList;
     }
 
     struct Addresses {
@@ -113,4 +114,11 @@ library Shift {
         props.numbers.callbackGasLimit = value;
     }
 
+    function dataList(Props memory props) internal pure returns (bytes32[] memory) {
+        return props._dataList;
+    }
+
+    function setDataList(Props memory props, bytes32[] memory value) internal pure {
+        props._dataList = value;
+    }
 }

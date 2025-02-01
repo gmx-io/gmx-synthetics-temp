@@ -103,16 +103,32 @@ const getEnvAccounts = (chainName?: string) => {
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.18",
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 10,
-        details: {
-          constantOptimizer: true,
+    compilers: [
+      {
+        version: "0.8.18",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 10,
+            details: {
+              constantOptimizer: true,
+            },
+          },
         },
       },
-    },
+      {
+        version: "0.8.20", // LZ
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 10,
+            details: {
+              constantOptimizer: true,
+            },
+          },
+        },
+      },
+    ],
   },
   networks: {
     hardhat: {

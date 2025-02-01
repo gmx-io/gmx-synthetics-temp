@@ -39,6 +39,7 @@ describe("DepositStoreUtils", () => {
       getItemKeys: getDepositKeys,
       getAccountItemCount: getAccountDepositCount,
       getAccountItemKeys: getAccountDepositKeys,
+      expectedPropsLength: 4,
     });
   });
 });

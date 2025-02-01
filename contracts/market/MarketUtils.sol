@@ -22,6 +22,8 @@ import "../price/Price.sol";
 import "../utils/Calc.sol";
 import "../utils/Precision.sol";
 
+import "../feature/FeatureUtils.sol";
+
 // @title MarketUtils
 // @dev Library for market functions
 library MarketUtils {
@@ -80,7 +82,7 @@ library MarketUtils {
 
         uint256 durationInSeconds;
 
-        uint256 sizeOfLargerSide;
+        uint256 sizeOfPayingSide;
         uint256 fundingUsd;
 
         uint256 fundingUsdForLongCollateral;
@@ -506,15 +508,7 @@ library MarketUtils {
         uint256 maxReservedUsd = Precision.applyFactor(poolUsd, reserveFactor);
         uint256 reserveUsageFactor = Precision.toFactor(reservedUsd, maxReservedUsd);
 
-        if (dataStore.getBool(Keys.IGNORE_OPEN_INTEREST_FOR_USAGE_FACTOR)) {
-            return reserveUsageFactor;
-        }
-
-        uint256 maxOpenInterest = getMaxOpenInterest(dataStore, market.marketToken, isLong);
-        uint256 openInterest = getOpenInterest(dataStore, market, isLong);
-        uint256 openInterestUsageFactor = Precision.toFactor(openInterest, maxOpenInterest);
-
-        return reserveUsageFactor > openInterestUsageFactor ? reserveUsageFactor : openInterestUsageFactor;
+        return reserveUsageFactor;
     }
 
     // @dev get the max open interest allowed for the market
@@ -648,6 +642,40 @@ library MarketUtils {
         return claimableAmount;
     }
 
+    function batchClaimCollateral(
+        DataStore dataStore,
+        EventEmitter eventEmitter,
+        address[] memory markets,
+        address[] memory tokens,
+        uint256[] memory timeKeys,
+        address receiver,
+        address account
+    ) internal returns (uint256[] memory) {
+        if (markets.length != tokens.length || tokens.length != timeKeys.length) {
+            revert Errors.InvalidClaimCollateralInput(markets.length, tokens.length, timeKeys.length);
+        }
+
+        FeatureUtils.validateFeature(dataStore, Keys.claimCollateralFeatureDisabledKey(address(this)));
+
+        AccountUtils.validateReceiver(receiver);
+
+        uint256[] memory claimedAmounts = new uint256[](markets.length);
+
+        for (uint256 i; i < markets.length; i++) {
+            claimedAmounts[i] = MarketUtils.claimCollateral(
+                dataStore,
+                eventEmitter,
+                markets[i],
+                tokens[i],
+                timeKeys[i],
+                account,
+                receiver
+            );
+        }
+
+        return claimedAmounts;
+    }
+
     // @dev claim collateral
     // @param dataStore DataStore
     // @param eventEmitter EventEmitter
@@ -667,13 +695,7 @@ library MarketUtils {
     ) internal returns (uint256) {
         uint256 claimableAmount = dataStore.getUint(Keys.claimableCollateralAmountKey(market, token, timeKey, account));
 
-        uint256 claimableFactor;
-
-        {
-            uint256 claimableFactorForTime = dataStore.getUint(Keys.claimableCollateralFactorKey(market, token, timeKey));
-            uint256 claimableFactorForAccount = dataStore.getUint(Keys.claimableCollateralFactorKey(market, token, timeKey, account));
-            claimableFactor = claimableFactorForTime > claimableFactorForAccount ? claimableFactorForTime : claimableFactorForAccount;
-        }
+        uint256 claimableFactor = _getClaimableFactor(dataStore, market, token, timeKey, account);
 
         if (claimableFactor > Precision.FLOAT_PRECISION) {
             revert Errors.InvalidClaimableFactor(claimableFactor);
@@ -718,6 +740,39 @@ library MarketUtils {
         );
 
         return amountToBeClaimed;
+    }
+
+    function _getClaimableFactor(
+        DataStore dataStore,
+        address market,
+        address token,
+        uint256 timeKey,
+        address account
+    ) internal view returns (uint256) {
+        uint256 claimableFactorForTime = dataStore.getUint(Keys.claimableCollateralFactorKey(market, token, timeKey));
+        uint256 claimableFactorForAccount = dataStore.getUint(Keys.claimableCollateralFactorKey(market, token, timeKey, account));
+        uint256 claimableFactor = claimableFactorForTime > claimableFactorForAccount
+            ? claimableFactorForTime
+            : claimableFactorForAccount;
+
+        // if the divisor is changed the timeDiff calculation would no longer be accurate
+        uint256 divisor = dataStore.getUint(Keys.CLAIMABLE_COLLATERAL_TIME_DIVISOR);
+
+        uint256 claimableReductionFactor = dataStore.getUint(Keys.claimableCollateralReductionFactorKey(market, token, timeKey, account));
+        uint256 timeDiff = Chain.currentTimestamp() - timeKey * divisor;
+        uint256 claimableCollateralDelay = dataStore.getUint(Keys.CLAIMABLE_COLLATERAL_DELAY);
+
+        if (claimableFactor == 0 && claimableReductionFactor == 0 && timeDiff > claimableCollateralDelay) {
+            claimableFactor = Precision.FLOAT_PRECISION;
+        }
+
+        if (claimableFactor > claimableReductionFactor) {
+            claimableFactor -= claimableReductionFactor;
+        } else {
+            claimableFactor = 0;
+        }
+
+        return claimableFactor;
     }
 
     // @dev apply a delta to the pool amount
@@ -792,17 +847,42 @@ library MarketUtils {
         return (positiveImpactFactor, negativeImpactFactor);
     }
 
-    // @dev cap the input priceImpactUsd by the available amount in the position
-    // impact pool and the max positive position impact factor
+    // @dev cap the input priceImpactUsd by the available amount in the position impact pool
     // @param dataStore DataStore
     // @param market the trading market
-    // @param tokenPrice the price of the token
+    // @param indexTokenPrice the price of the token
     // @param priceImpactUsd the calculated USD price impact
     // @return the capped priceImpactUsd
-    function getCappedPositionImpactUsd(
+    function capPositiveImpactUsdByPositionImpactPool(
         DataStore dataStore,
         address market,
         Price.Props memory indexTokenPrice,
+        int256 priceImpactUsd
+    ) internal view returns (int256) {
+        if (priceImpactUsd < 0) {
+            return priceImpactUsd;
+        }
+
+        uint256 impactPoolAmount = getPositionImpactPoolAmount(dataStore, market);
+        // use indexTokenPrice.min to maximize the position impact pool reduction
+        int256 maxPriceImpactUsdBasedOnImpactPool = (impactPoolAmount * indexTokenPrice.min).toInt256();
+
+        if (priceImpactUsd > maxPriceImpactUsdBasedOnImpactPool) {
+            priceImpactUsd = maxPriceImpactUsdBasedOnImpactPool;
+        }
+
+        return priceImpactUsd;
+    }
+
+    // @dev cap the input priceImpactUsd by the max positive position impact factor
+    // @param dataStore DataStore
+    // @param market the trading market
+    // @param priceImpactUsd the calculated USD price impact
+    // @param sizeDeltaUsd the size by which the position is increased/decreased
+    // @return the capped priceImpactUsd
+    function capPositiveImpactUsdByMaxPositionImpact(
+        DataStore dataStore,
+        address market,
         int256 priceImpactUsd,
         uint256 sizeDeltaUsd
     ) internal view returns (int256) {
@@ -810,16 +890,10 @@ library MarketUtils {
             return priceImpactUsd;
         }
 
-        uint256 impactPoolAmount = getPositionImpactPoolAmount(dataStore, market);
-        int256 maxPriceImpactUsdBasedOnImpactPool = (impactPoolAmount * indexTokenPrice.min).toInt256();
-
-        if (priceImpactUsd > maxPriceImpactUsdBasedOnImpactPool) {
-            priceImpactUsd = maxPriceImpactUsdBasedOnImpactPool;
-        }
-
         uint256 maxPriceImpactFactor = getMaxPositionImpactFactor(dataStore, market, true);
         int256 maxPriceImpactUsdBasedOnMaxPriceImpactFactor = Precision.applyFactor(sizeDeltaUsd, maxPriceImpactFactor).toInt256();
 
+        // capped by the positive price impact
         if (priceImpactUsd > maxPriceImpactUsdBasedOnMaxPriceImpactFactor) {
             priceImpactUsd = maxPriceImpactUsdBasedOnMaxPriceImpactFactor;
         }
@@ -1080,6 +1154,12 @@ library MarketUtils {
         setSavedFundingFactorPerSecond(dataStore, market.marketToken, result.nextSavedFundingFactorPerSecond);
 
         dataStore.setUint(Keys.fundingUpdatedAtKey(market.marketToken), Chain.currentTimestamp());
+
+        MarketEventUtils.emitFunding(
+            eventEmitter,
+            market.marketToken,
+            result.fundingFactorPerSecond
+        );
     }
 
     // @dev get the next funding amount per size values
@@ -1119,8 +1199,6 @@ library MarketUtils {
         // this should be a rare occurrence so funding fees are not adjusted for this case
         cache.durationInSeconds = getSecondsSinceFundingUpdated(dataStore, market.marketToken);
 
-        cache.sizeOfLargerSide = cache.longOpenInterest > cache.shortOpenInterest ? cache.longOpenInterest : cache.shortOpenInterest;
-
         (result.fundingFactorPerSecond, result.longsPayShorts, result.nextSavedFundingFactorPerSecond) = getNextFundingFactorPerSecond(
             dataStore,
             market.marketToken,
@@ -1128,6 +1206,8 @@ library MarketUtils {
             cache.shortOpenInterest,
             cache.durationInSeconds
         );
+
+        cache.sizeOfPayingSide = result.longsPayShorts ? cache.longOpenInterest : cache.shortOpenInterest;
 
         // for single token markets, if there is $200,000 long open interest
         // and $100,000 short open interest and if the fundingUsd is $8:
@@ -1157,7 +1237,7 @@ library MarketUtils {
         //
         // due to these, the fundingUsd should be divided by the divisor
 
-        cache.fundingUsd = Precision.applyFactor(cache.sizeOfLargerSide, cache.durationInSeconds * result.fundingFactorPerSecond);
+        cache.fundingUsd = Precision.applyFactor(cache.sizeOfPayingSide, cache.durationInSeconds * result.fundingFactorPerSecond);
         cache.fundingUsd = cache.fundingUsd / divisor;
 
         // split the fundingUsd value by long and short collateral
@@ -1421,7 +1501,7 @@ library MarketUtils {
         MarketPrices memory prices,
         bool isLong
     ) external {
-        (/* uint256 nextCumulativeBorrowingFactor */, uint256 delta) = getNextCumulativeBorrowingFactor(
+        (/* uint256 nextCumulativeBorrowingFactor */, uint256 delta, uint256 borrowingFactorPerSecond) = getNextCumulativeBorrowingFactor(
             dataStore,
             market,
             prices,
@@ -1437,6 +1517,12 @@ library MarketUtils {
         );
 
         dataStore.setUint(Keys.cumulativeBorrowingFactorUpdatedAtKey(market.marketToken, isLong), Chain.currentTimestamp());
+
+        MarketEventUtils.emitBorrowing(
+            eventEmitter,
+            market.marketToken,
+            borrowingFactorPerSecond
+        );
     }
 
     // @dev get the ratio of pnl to pool value
@@ -1721,7 +1807,7 @@ library MarketUtils {
     // @param prices the prices of the market tokens
     // @return the borrowing fees for a position
     function getNextBorrowingFees(DataStore dataStore, Position.Props memory position, Market.Props memory market, MarketPrices memory prices) internal view returns (uint256) {
-        (uint256 nextCumulativeBorrowingFactor, /* uint256 delta */) = getNextCumulativeBorrowingFactor(
+        (uint256 nextCumulativeBorrowingFactor, /* uint256 delta */, ) = getNextCumulativeBorrowingFactor(
             dataStore,
             market,
             prices,
@@ -2344,7 +2430,7 @@ library MarketUtils {
         Market.Props memory market,
         MarketPrices memory prices,
         bool isLong
-    ) internal view returns (uint256, uint256) {
+    ) internal view returns (uint256, uint256, uint256) {
         uint256 durationInSeconds = getSecondsSinceCumulativeBorrowingFactorUpdated(dataStore, market.marketToken, isLong);
         uint256 borrowingFactorPerSecond = getBorrowingFactorPerSecond(
             dataStore,
@@ -2357,7 +2443,7 @@ library MarketUtils {
 
         uint256 delta = durationInSeconds * borrowingFactorPerSecond;
         uint256 nextCumulativeBorrowingFactor = cumulativeBorrowingFactor + delta;
-        return (nextCumulativeBorrowingFactor, delta);
+        return (nextCumulativeBorrowingFactor, delta, borrowingFactorPerSecond);
     }
 
     // @dev get the borrowing factor per second
@@ -2558,7 +2644,7 @@ library MarketUtils {
             isLong
         );
 
-        (uint256 nextCumulativeBorrowingFactor, /* uint256 delta */) = getNextCumulativeBorrowingFactor(
+        (uint256 nextCumulativeBorrowingFactor, /* uint256 delta */, ) = getNextCumulativeBorrowingFactor(
             dataStore,
             market,
             prices,

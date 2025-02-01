@@ -41,6 +41,7 @@ export async function createWithdrawal(fixture, overrides: any = {}) {
   const shouldUnwrapNativeToken = overrides.shouldUnwrapNativeToken || false;
   const executionFee = overrides.executionFee || "1000000000000000";
   const callbackGasLimit = overrides.callbackGasLimit || bigNumberify(0);
+  const dataList = overrides.dataList || [];
 
   await wnt.mint(withdrawalVault.address, executionFee);
 
@@ -60,6 +61,7 @@ export async function createWithdrawal(fixture, overrides: any = {}) {
     shouldUnwrapNativeToken,
     executionFee,
     callbackGasLimit,
+    dataList,
   };
 
   await logGasUsage({
@@ -137,6 +139,7 @@ export async function executeAtomicWithdrawal(fixture, overrides: any = {}) {
   const shouldUnwrapNativeToken = overrides.shouldUnwrapNativeToken || false;
   const executionFee = overrides.executionFee || "1000000000000000";
   const callbackGasLimit = overrides.callbackGasLimit || bigNumberify(0);
+  const dataList = overrides.dataList || [];
 
   await wnt.mint(withdrawalVault.address, executionFee);
 
@@ -156,6 +159,7 @@ export async function executeAtomicWithdrawal(fixture, overrides: any = {}) {
     shouldUnwrapNativeToken,
     executionFee,
     callbackGasLimit,
+    dataList,
   };
 
   let oracleParams = overrides.oracleParams;

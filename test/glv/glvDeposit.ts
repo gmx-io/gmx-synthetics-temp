@@ -197,6 +197,7 @@ describe("Glv Deposits", () => {
   });
 
   it("create glv deposit", async () => {
+    await dataStore.setUint(keys.MAX_DATA_LENGTH, 256);
     const params = {
       glv: ethUsdGlvAddress,
       receiver: user1,
@@ -213,6 +214,7 @@ describe("Glv Deposits", () => {
       shouldUnwrapNativeToken: true,
       callbackGasLimit: "200000",
       gasUsageLabel: "createGlvDeposit",
+      dataList: [ethers.utils.formatBytes32String("customData")],
     };
 
     await createGlvDeposit(fixture, params);
@@ -228,6 +230,7 @@ describe("Glv Deposits", () => {
   });
 
   it("create glv deposit, market tokens", async () => {
+    await dataStore.setUint(keys.MAX_DATA_LENGTH, 256);
     const params = {
       glv: ethUsdGlvAddress,
       receiver: user1,
@@ -244,6 +247,7 @@ describe("Glv Deposits", () => {
       callbackGasLimit: "200000",
       gasUsageLabel: "createGlvDeposit",
       isMarketTokenDeposit: true,
+      dataList: [ethers.utils.formatBytes32String("customData")],
     };
 
     await createGlvDeposit(fixture, params);
@@ -257,6 +261,7 @@ describe("Glv Deposits", () => {
   });
 
   it("create glv deposit, single asset", async () => {
+    await dataStore.setUint(keys.MAX_DATA_LENGTH, 256);
     const params = {
       glv: ethUsdSingleTokenGlvAddress,
       receiver: user1,
@@ -272,6 +277,7 @@ describe("Glv Deposits", () => {
       shouldUnwrapNativeToken: true,
       callbackGasLimit: "200000",
       gasUsageLabel: "createGlvDeposit",
+      dataList: [ethers.utils.formatBytes32String("customData")],
     };
 
     await createGlvDeposit(fixture, params);
@@ -397,6 +403,8 @@ describe("Glv Deposits", () => {
       initialShortToken: wnt.address,
       shortTokenAmount: expandDecimals(10, 18),
       shortTokenSwapPath: [ethUsdMarket.marketToken],
+
+      dataList: [],
     };
     await createGlvDeposit(fixture, params);
 
@@ -427,6 +435,7 @@ describe("Glv Deposits", () => {
       longTokenAmount: expandDecimals(10, 18),
       longTokenSwapPath: [],
       initialShortToken: wnt.address,
+      dataList: [],
     };
     await createGlvDeposit(fixture, params);
 
@@ -478,6 +487,7 @@ describe("Glv Deposits", () => {
     const params = {
       longTokenAmount: expandDecimals(1, 18),
       shortTokenAmount: 0,
+      dataList: [],
     };
     await createGlvDeposit(fixture, params);
 
@@ -496,6 +506,7 @@ describe("Glv Deposits", () => {
     const params = {
       longTokenAmount: 0,
       shortTokenAmount: expandDecimals(1000, 6),
+      dataList: [],
     };
     await createGlvDeposit(fixture, params);
 
@@ -792,6 +803,7 @@ describe("Glv Deposits", () => {
       marketTokenAmount: 0,
       shouldUnwrapNativeToken: false,
       isMarketTokenDeposit: false,
+      dataList: [],
     });
 
     await expect(glvRouter.connect(user1).cancelGlvDeposit(glvDepositKeys[0]))
@@ -868,6 +880,7 @@ describe("Glv Deposits", () => {
       account: user0.address,
       marketTokenAmount: 0,
       isMarketTokenDeposit: false,
+      dataList: [],
     });
 
     await expect(glvRouter.connect(user1).cancelGlvDeposit(glvDepositKeys[0]))
@@ -951,6 +964,7 @@ describe("Glv Deposits", () => {
       initialShortTokenAmount: 0,
       shouldUnwrapNativeToken: false,
       isMarketTokenDeposit: true,
+      dataList: [],
     });
 
     await expect(glvRouter.connect(user1).cancelGlvDeposit(glvDepositKeys[0]))

@@ -20,8 +20,8 @@ library ReaderPricingUtils {
 
     struct ExecutionPriceResult {
         int256 priceImpactUsd;
-        uint256 priceImpactDiffUsd;
         uint256 executionPrice;
+        bool balanceWasImproved;
     }
 
     struct PositionInfo {
@@ -61,7 +61,7 @@ library ReaderPricingUtils {
         cache.tokenInPrice = MarketUtils.getCachedTokenPrice(tokenIn, market, prices);
         cache.tokenOutPrice = MarketUtils.getCachedTokenPrice(cache.tokenOut, market, prices);
 
-        int256 priceImpactUsd = SwapPricingUtils.getPriceImpactUsd(
+        (int256 priceImpactUsd, bool balanceWasImproved) = SwapPricingUtils.getPriceImpactUsd(
             SwapPricingUtils.GetPriceImpactUsdParams(
                 dataStore,
                 market,
@@ -79,7 +79,7 @@ library ReaderPricingUtils {
             dataStore,
             market.marketToken,
             amountIn,
-            priceImpactUsd > 0, // forPositiveImpact
+            balanceWasImproved,
             uiFeeReceiver,
             ISwapPricingUtils.SwapPricingType.Swap
         );
@@ -175,12 +175,12 @@ library ReaderPricingUtils {
         ExecutionPriceResult memory result;
 
         if (sizeDeltaUsd > 0) {
-            (result.priceImpactUsd, /* priceImpactAmount */, /* sizeDeltaInTokens */, result.executionPrice) = PositionUtils.getExecutionPriceForIncrease(
+            (result.priceImpactUsd, /* priceImpactAmount */, /* sizeDeltaInTokens */, result.executionPrice, result.balanceWasImproved) = PositionUtils.getExecutionPriceForIncrease(
                 params,
                 indexTokenPrice
             );
         } else {
-             (result.priceImpactUsd, result.priceImpactDiffUsd, result.executionPrice) = PositionUtils.getExecutionPriceForDecrease(
+             (result.priceImpactUsd, result.executionPrice, result.balanceWasImproved) = PositionUtils.getExecutionPriceForDecrease(
                 params,
                 indexTokenPrice
             );
@@ -198,7 +198,7 @@ library ReaderPricingUtils {
         Price.Props memory tokenInPrice,
         Price.Props memory tokenOutPrice
     ) external view returns (int256 priceImpactUsdBeforeCap, int256 priceImpactAmount, int256 tokenInPriceImpactAmount) {
-        priceImpactUsdBeforeCap = SwapPricingUtils.getPriceImpactUsd(
+        (priceImpactUsdBeforeCap, ) = SwapPricingUtils.getPriceImpactUsd(
             SwapPricingUtils.GetPriceImpactUsdParams(
                 dataStore,
                 market,

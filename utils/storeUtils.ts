@@ -29,6 +29,18 @@ function setSampleItemAddresses({ emptyStoreItem, accountList, user0, overrideVa
   });
 }
 
+function setSampleItemBytes32Array({ emptyStoreItem, sampleItem, arrayLength }) {
+  if (emptyStoreItem._dataList === undefined) {
+    return;
+  }
+
+  for (let i = 0; i < arrayLength; i++) {
+    // Convert `i + 1` to a bytes32 value
+    const bytes32Value = ethers.utils.formatBytes32String(`${i + 1}`);
+    sampleItem._dataList.push(bytes32Value);
+  }
+}
+
 function setSampleItemNumbers({ emptyStoreItem, overrideValues, sampleItem }) {
   Object.keys(emptyStoreItem.numbers).forEach((key, index) => {
     if (isNaN(parseInt(key))) {
@@ -76,6 +88,12 @@ async function validateFetchedItemAfterSet({ emptyStoreItem, getItem, dataStore,
       if (isNaN(parseInt(key))) {
         expect(fetchedItem.flags[key], key).eq(sampleItem.flags[key]);
       }
+    });
+  }
+
+  if (emptyStoreItem._dataList !== undefined) {
+    fetchedItem._dataList.forEach((data, index) => {
+      expect(data).eq(sampleItem._dataList[index]);
     });
   }
 }
@@ -157,6 +175,7 @@ export async function validateStoreUtils({
       addresses: {},
       numbers: {},
       flags: {},
+      _dataList: [],
     };
 
     setSampleItemAddresses({
@@ -170,6 +189,8 @@ export async function validateStoreUtils({
     setSampleItemNumbers({ emptyStoreItem, overrideValues, sampleItem });
 
     setSampleItemFlags({ emptyStoreItem, sampleItem, index: i });
+
+    setSampleItemBytes32Array({ emptyStoreItem, sampleItem, arrayLength: i });
 
     const initialItemCount = await getItemCount(dataStore);
     const initialItemKeys = await getItemKeys(dataStore, 0, 10);

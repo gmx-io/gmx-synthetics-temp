@@ -142,7 +142,7 @@ describe("Exchange.PositionOrder", () => {
       .to.be.revertedWithCustomError(errorsContract, "OrderTypeCannotBeCreated")
       .withArgs(OrderType.Liquidation);
 
-    for (const orderType of [OrderType.MarketIncrease, OrderType.MarketDecrease, OrderType.MarketSwap]) {
+    for (const orderType of [OrderType.MarketIncrease, OrderType.MarketDecrease]) {
       await expect(
         createOrder(fixture, {
           ...params,
@@ -153,6 +153,17 @@ describe("Exchange.PositionOrder", () => {
         .to.be.revertedWithCustomError(errorsContract, "UnexpectedValidFromTime")
         .withArgs(orderType);
     }
+
+    await expect(
+      createOrder(fixture, {
+        ...params,
+        market: undefined,
+        orderType: OrderType.MarketSwap,
+        validFromTime: 1,
+      })
+    )
+      .to.be.revertedWithCustomError(errorsContract, "UnexpectedValidFromTime")
+      .withArgs(OrderType.MarketSwap);
 
     await expect(
       createOrder(fixture, {

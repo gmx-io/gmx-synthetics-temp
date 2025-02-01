@@ -48,6 +48,7 @@ describe("WithdrawalStoreUtils", () => {
       getItemKeys: getWithdrawalKeys,
       getAccountItemCount: getAccountWithdrawalCount,
       getAccountItemKeys: getAccountWithdrawalKeys,
+      expectedPropsLength: 4,
     });
   });
 });

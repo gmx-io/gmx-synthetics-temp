@@ -36,7 +36,7 @@ library PositionPricingUtils {
         IReferralStorage referralStorage;
         Position.Props position;
         Price.Props collateralTokenPrice;
-        bool forPositiveImpact;
+        bool balanceWasImproved;
         address longToken;
         address shortToken;
         uint256 sizeDeltaUsd;
@@ -154,12 +154,12 @@ library PositionPricingUtils {
         uint256 uiFeeAmount;
     }
 
-    // @dev get the price impact in USD for a position increase / decrease
-    // @param params GetPriceImpactUsdParams
-    function getPriceImpactUsd(GetPriceImpactUsdParams memory params) internal view returns (int256) {
+    // @dev get the price impact in USD for a position increase / decrease and whether the balance was improved
+    // @param params GetPriceImpactUsdParams and the balanceWasImproved boolean
+    function getPriceImpactUsd(GetPriceImpactUsdParams memory params) internal view returns (int256, bool) {
         OpenInterestParams memory openInterestParams = getNextOpenInterest(params);
 
-        int256 priceImpactUsd = _getPriceImpactUsd(params.dataStore, params.market.marketToken, openInterestParams);
+        (int256 priceImpactUsd, bool balanceWasImproved) = _getPriceImpactUsd(params.dataStore, params.market.marketToken, openInterestParams);
 
         // the virtual price impact calculation is skipped if the price impact
         // is positive since the action is helping to balance the pool
@@ -170,22 +170,22 @@ library PositionPricingUtils {
         // not skipping the virtual price impact calculation would lead to
         // a negative price impact for any trade on either pools and would
         // disincentivise the balancing of pools
-        if (priceImpactUsd >= 0) { return priceImpactUsd; }
+        if (priceImpactUsd >= 0) { return (priceImpactUsd, balanceWasImproved); }
 
         (bool hasVirtualInventory, int256 virtualInventory) = MarketUtils.getVirtualInventoryForPositions(params.dataStore, params.market.indexToken);
-        if (!hasVirtualInventory) { return priceImpactUsd; }
+        if (!hasVirtualInventory) { return (priceImpactUsd, balanceWasImproved); }
 
         OpenInterestParams memory openInterestParamsForVirtualInventory = getNextOpenInterestForVirtualInventory(params, virtualInventory);
-        int256 priceImpactUsdForVirtualInventory = _getPriceImpactUsd(params.dataStore, params.market.marketToken, openInterestParamsForVirtualInventory);
+        (int256 priceImpactUsdForVirtualInventory, bool balanceWasImprovedForVirtualInventory) = _getPriceImpactUsd(params.dataStore, params.market.marketToken, openInterestParamsForVirtualInventory);
 
-        return priceImpactUsdForVirtualInventory < priceImpactUsd ? priceImpactUsdForVirtualInventory : priceImpactUsd;
+        return priceImpactUsdForVirtualInventory < priceImpactUsd ? (priceImpactUsdForVirtualInventory, balanceWasImprovedForVirtualInventory) : (priceImpactUsd, balanceWasImproved);
     }
 
-    // @dev get the price impact in USD for a position increase / decrease
+    // @dev get the price impact in USD for a position increase / decrease and whether the balance was improved
     // @param dataStore DataStore
     // @param market the trading market
-    // @param openInterestParams OpenInterestParams
-    function _getPriceImpactUsd(DataStore dataStore, address market, OpenInterestParams memory openInterestParams) internal view returns (int256) {
+    // @param openInterestParams OpenInterestParams and the balanceWasImproved boolean
+    function _getPriceImpactUsd(DataStore dataStore, address market, OpenInterestParams memory openInterestParams) internal view returns (int256, bool) {
         uint256 initialDiffUsd = Calc.diff(openInterestParams.longOpenInterest, openInterestParams.shortOpenInterest);
         uint256 nextDiffUsd = Calc.diff(openInterestParams.nextLongOpenInterest, openInterestParams.nextShortOpenInterest);
 
@@ -196,25 +196,31 @@ library PositionPricingUtils {
         bool isSameSideRebalance = openInterestParams.longOpenInterest <= openInterestParams.shortOpenInterest == openInterestParams.nextLongOpenInterest <= openInterestParams.nextShortOpenInterest;
         uint256 impactExponentFactor = dataStore.getUint(Keys.positionImpactExponentFactorKey(market));
 
+        bool balanceWasImproved = nextDiffUsd < initialDiffUsd;
         if (isSameSideRebalance) {
-            bool hasPositiveImpact = nextDiffUsd < initialDiffUsd;
-            uint256 impactFactor = MarketUtils.getAdjustedPositionImpactFactor(dataStore, market, hasPositiveImpact);
+            uint256 impactFactor = MarketUtils.getAdjustedPositionImpactFactor(dataStore, market, balanceWasImproved);
 
-            return PricingUtils.getPriceImpactUsdForSameSideRebalance(
-                initialDiffUsd,
-                nextDiffUsd,
-                impactFactor,
-                impactExponentFactor
+            return (
+                PricingUtils.getPriceImpactUsdForSameSideRebalance(
+                    initialDiffUsd,
+                    nextDiffUsd,
+                    impactFactor,
+                    impactExponentFactor
+                ),
+                balanceWasImproved
             );
         } else {
             (uint256 positiveImpactFactor, uint256 negativeImpactFactor) = MarketUtils.getAdjustedPositionImpactFactors(dataStore, market);
 
-            return PricingUtils.getPriceImpactUsdForCrossoverRebalance(
-                initialDiffUsd,
-                nextDiffUsd,
-                positiveImpactFactor,
-                negativeImpactFactor,
-                impactExponentFactor
+            return (
+                PricingUtils.getPriceImpactUsdForCrossoverRebalance(
+                    initialDiffUsd,
+                    nextDiffUsd,
+                    positiveImpactFactor,
+                    negativeImpactFactor,
+                    impactExponentFactor
+                ),
+                balanceWasImproved
             );
         }
     }
@@ -320,7 +326,7 @@ library PositionPricingUtils {
             params.dataStore,
             params.referralStorage,
             params.collateralTokenPrice,
-            params.forPositiveImpact,
+            params.balanceWasImproved,
             params.position.account(),
             params.position.market(),
             params.sizeDeltaUsd
@@ -470,7 +476,7 @@ library PositionPricingUtils {
         DataStore dataStore,
         IReferralStorage referralStorage,
         Price.Props memory collateralTokenPrice,
-        bool forPositiveImpact,
+        bool balanceWasImproved,
         address account,
         address market,
         uint256 sizeDeltaUsd
@@ -494,7 +500,7 @@ library PositionPricingUtils {
         // it is possible for the balance to be improved overall but for the price impact to still be negative
         // in this case the fee factor for the negative price impact would be charged
         // a user could split the order into two, to incur a smaller fee, reducing the fee through this should not be a large issue
-        fees.positionFeeFactor = dataStore.getUint(Keys.positionFeeFactorKey(market, forPositiveImpact));
+        fees.positionFeeFactor = dataStore.getUint(Keys.positionFeeFactorKey(market, balanceWasImproved));
         fees.positionFeeAmount = Precision.applyFactor(sizeDeltaUsd, fees.positionFeeFactor) / collateralTokenPrice.min;
 
         // pro tiers are provided as a flexible option to allow for custom criteria based discounts,

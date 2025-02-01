@@ -35,6 +35,7 @@ contract GlvHandler is BaseHandler, ReentrancyGuard {
         GlvDepositUtils.CreateGlvDepositParams calldata params
     ) external globalNonReentrant onlyController returns (bytes32) {
         FeatureUtils.validateFeature(dataStore, Keys.createGlvDepositFeatureDisabledKey(address(this)));
+        validateDataListLength(params.dataList.length);
 
         return GlvDepositUtils.createGlvDeposit(dataStore, eventEmitter, glvVault, account, params);
     }

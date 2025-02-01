@@ -28,11 +28,12 @@ library WithdrawalEventUtils {
     ) external {
         EventUtils.EventLogData memory eventData;
 
-        eventData.addressItems.initItems(4);
+        eventData.addressItems.initItems(5);
         eventData.addressItems.setItem(0, "account", withdrawal.account());
         eventData.addressItems.setItem(1, "receiver", withdrawal.receiver());
         eventData.addressItems.setItem(2, "callbackContract", withdrawal.callbackContract());
         eventData.addressItems.setItem(3, "market", withdrawal.market());
+        eventData.addressItems.setItem(4, "uiFeeReceiver", withdrawal.uiFeeReceiver());
 
         eventData.addressItems.initArrayItems(2);
         eventData.addressItems.setItem(0, "longTokenSwapPath", withdrawal.longTokenSwapPath());

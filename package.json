@@ -48,6 +48,7 @@
   "dependencies": {
     "@apollo/client": "^3.9.3",
     "@chainlink/contracts": "^1.1.0",
+    "@layerzerolabs/lz-evm-protocol-v2": "^3.0.30",
     "@nomicfoundation/hardhat-foundry": "^1.1.1",
     "@openzeppelin/contracts": "4.9.3",
     "@poanet/solidity-flattener": "^3.0.9",

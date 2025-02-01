@@ -58,6 +58,7 @@ library WithdrawalUtils {
         bool shouldUnwrapNativeToken;
         uint256 executionFee;
         uint256 callbackGasLimit;
+        bytes32[] dataList;
     }
 
     /**
@@ -75,7 +76,8 @@ library WithdrawalUtils {
         EventEmitter eventEmitter,
         WithdrawalVault withdrawalVault,
         address account,
-        CreateWithdrawalParams memory params
+        CreateWithdrawalParams memory params,
+        bool isAtomicWithdrawal
     ) external returns (bytes32) {
         AccountUtils.validateAccount(account);
 
@@ -83,7 +85,7 @@ library WithdrawalUtils {
         uint256 wntAmount = withdrawalVault.recordTransferIn(wnt);
 
         if (wntAmount < params.executionFee) {
-            revert Errors.InsufficientWntAmount(wntAmount, params.executionFee);
+            revert Errors.InsufficientWntAmountForExecutionFee(wntAmount, params.executionFee);
         }
 
         AccountUtils.validateReceiver(params.receiver);
@@ -119,14 +121,17 @@ library WithdrawalUtils {
             ),
             Withdrawal.Flags(
                 params.shouldUnwrapNativeToken
-            )
+            ),
+            params.dataList
         );
 
         CallbackUtils.validateCallbackGasLimit(dataStore, withdrawal.callbackGasLimit());
 
         uint256 estimatedGasLimit = GasUtils.estimateExecuteWithdrawalGasLimit(dataStore, withdrawal);
         uint256 oraclePriceCount = GasUtils.estimateWithdrawalOraclePriceCount(withdrawal.longTokenSwapPath().length + withdrawal.shortTokenSwapPath().length);
-        GasUtils.validateExecutionFee(dataStore, estimatedGasLimit, params.executionFee, oraclePriceCount);
+        if (!isAtomicWithdrawal) {
+            GasUtils.validateExecutionFee(dataStore, estimatedGasLimit, params.executionFee, oraclePriceCount);
+        }
 
         bytes32 key = NonceUtils.getNextKey(dataStore);
 

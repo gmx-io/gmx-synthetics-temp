@@ -99,8 +99,8 @@ describe("Guardian.DecreasePositionCollateralUtils", () => {
     expect(await getPoolAmount(dataStore, ethUsdMarket.marketToken, wnt.address)).eq(expandDecimals(1000, 18));
     expect(await getPoolAmount(dataStore, ethUsdMarket.marketToken, usdc.address)).eq(expandDecimals(1_000_000, 6));
 
-    // Position fee factor set which will be emptied on getEmptyFees
-    await dataStore.setUint(keys.positionFeeFactorKey(ethUsdMarket.marketToken, false), decimalToFloat(5, 2)); // 5%
+    // Position fee factor set which will be emptied on getEmptyFees. Balance was improved, positive fee factor is used.
+    await dataStore.setUint(keys.positionFeeFactorKey(ethUsdMarket.marketToken, true), decimalToFloat(5, 2)); // 5%
 
     // Because of Positive PnL, order passes validatePosition
     // even if entire collateral was used to pay fees.
@@ -169,8 +169,8 @@ describe("Guardian.DecreasePositionCollateralUtils", () => {
     expect(await getPoolAmount(dataStore, ethUsdMarket.marketToken, wnt.address)).eq(expandDecimals(1000, 18));
     expect(await getPoolAmount(dataStore, ethUsdMarket.marketToken, usdc.address)).eq(expandDecimals(1_000_000, 6));
 
-    // Position fee factor set which will be emptied on getEmptyFees
-    await dataStore.setUint(keys.positionFeeFactorKey(ethUsdMarket.marketToken, false), decimalToFloat(5, 2)); // 5%
+    // Position fee factor set which will be emptied on getEmptyFees. Balance was improved, positive fee factor is used.
+    await dataStore.setUint(keys.positionFeeFactorKey(ethUsdMarket.marketToken, true), decimalToFloat(5, 2)); // 5%
 
     // Entire collateral used to pay fees,
     // so initialCollateralDeltaAmount of 1 USDC will be enough to trigger auto-update
@@ -322,7 +322,7 @@ describe("Guardian.DecreasePositionCollateralUtils", () => {
     await scenes.increasePosition.long(fixture, {
       create: {
         sizeDeltaUsd: decimalToFloat(700_000),
-        initialCollateralDeltaAmount: expandDecimals(20_175, 6),
+        initialCollateralDeltaAmount: expandDecimals(20_700, 6),
       },
     });
 

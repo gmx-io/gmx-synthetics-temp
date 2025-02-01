@@ -8,6 +8,7 @@ import { getExecuteParams } from "../../../utils/exchange";
 import { getEventData } from "../../../utils/event";
 import { prices } from "../../../utils/prices";
 import * as keys from "../../../utils/keys";
+import { getPendingImpactAmountKey, getPositionKey } from "../../../utils/position";
 
 describe("Exchange.PositionPriceImpact.SyntheticMarket", () => {
   let fixture;
@@ -31,7 +32,7 @@ describe("Exchange.PositionPriceImpact.SyntheticMarket", () => {
     });
   });
 
-  it("price impact", async () => {
+  it("price impact synthetic market", async () => {
     await dataStore.setUint(keys.positionImpactFactorKey(solUsdMarket.marketToken, true), decimalToFloat(5, 9));
     await dataStore.setUint(keys.positionImpactFactorKey(solUsdMarket.marketToken, false), decimalToFloat(1, 8));
     await dataStore.setUint(keys.positionImpactExponentFactorKey(solUsdMarket.marketToken), decimalToFloat(2, 0));
@@ -49,6 +50,8 @@ describe("Exchange.PositionPriceImpact.SyntheticMarket", () => {
       isLong: true,
     };
 
+    const positionKey0 = getPositionKey(user0.address, solUsdMarket.marketToken, wnt.address, true);
+    expect(await dataStore.getInt(getPendingImpactAmountKey(positionKey0))).eq(0);
     expect(await dataStore.getUint(keys.positionImpactPoolAmountKey(solUsdMarket.marketToken))).eq(0);
 
     // increase long position, negative price impact
@@ -65,7 +68,8 @@ describe("Exchange.PositionPriceImpact.SyntheticMarket", () => {
       },
     });
 
-    expect(await dataStore.getUint(keys.positionImpactPoolAmountKey(solUsdMarket.marketToken))).eq("8000000000"); // 8 SOL, 400 USD
+    expect(await dataStore.getUint(keys.positionImpactPoolAmountKey(solUsdMarket.marketToken))).eq(0);
+    expect(await dataStore.getInt(getPendingImpactAmountKey(positionKey0))).eq("-8000000000"); // -8 SOL, -400 USD
 
     // decrease long position, positive price impact
     await handleOrder(fixture, {
@@ -79,12 +83,13 @@ describe("Exchange.PositionPriceImpact.SyntheticMarket", () => {
         gasUsageLabel: "executeOrder",
         afterExecution: ({ logs }) => {
           const positionDecreaseEvent = getEventData(logs, "PositionDecrease");
-          expect(positionDecreaseEvent.executionPrice).eq("50050100200400801602278"); // 50.05
-          expect(positionDecreaseEvent.priceImpactUsd).eq("199999999999999996294009356670000"); // 200
+          expect(positionDecreaseEvent.executionPrice).eq("50000000000000000000000"); // 50
+          expect(positionDecreaseEvent.priceImpactUsd).eq(0); // positive impact is capped by the impact pool amount which is 0
         },
       },
     });
 
-    expect(await dataStore.getUint(keys.positionImpactPoolAmountKey(solUsdMarket.marketToken))).eq("4000000000"); // 4 SOL, 200 USD
+    expect(await dataStore.getUint(keys.positionImpactPoolAmountKey(solUsdMarket.marketToken))).eq("8000000000"); // 8 SOL, 400 USD
+    expect(await dataStore.getInt(getPendingImpactAmountKey(positionKey0))).eq(0);
   });
 });

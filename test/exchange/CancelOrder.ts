@@ -116,6 +116,7 @@ describe("Exchange.CancelOrder", () => {
     expect(order.addresses.market).eq(ethUsdMarket.marketToken);
     expect(order.addresses.initialCollateralToken).eq(wnt.address);
     expect(order.addresses.swapPath).eql([ethUsdMarket.marketToken]);
+    expect(order.addresses.cancellationReceiver).eq(user0.address);
     expect(order.numbers.orderType).eq(OrderType.LimitIncrease);
     expect(order.numbers.sizeDeltaUsd).eq(decimalToFloat(200 * 1000));
     expect(order.numbers.initialCollateralDeltaAmount).eq(expandDecimals(10, 18));

@@ -67,6 +67,8 @@ describe("Exchange.MarketIncreaseOrder", () => {
 
   it("createOrder", async () => {
     expect(await getOrderCount(dataStore)).eq(0);
+    await dataStore.setUint(keys.MAX_DATA_LENGTH, 256);
+    const dataList = [ethers.utils.formatBytes32String("customData")];
     const params = {
       market: ethUsdMarket,
       initialCollateralToken: wnt,
@@ -81,6 +83,7 @@ describe("Exchange.MarketIncreaseOrder", () => {
       shouldUnwrapNativeToken: false,
       gasUsageLabel: "createOrder",
       cancellationReceiver: user1,
+      dataList,
     };
 
     await createOrder(fixture, params);
@@ -103,6 +106,7 @@ describe("Exchange.MarketIncreaseOrder", () => {
     expect(order.numbers.minOutputAmount).eq(expandDecimals(50000, 6));
     expect(order.flags.isLong).eq(true);
     expect(order.flags.shouldUnwrapNativeToken).eq(false);
+    expect(order._dataList).deep.eq(dataList);
 
     await expect(createOrder(fixture, { ...params, cancellationReceiver: orderVault })).to.be.revertedWithCustomError(
       errorsContract,
@@ -258,7 +262,7 @@ describe("Exchange.MarketIncreaseOrder", () => {
 
     await handleOrder(fixture, { create: params });
 
-    expect((await provider.getBalance(user1.address)).sub(initialBalance)).closeTo("206999985656000", "10000000000000");
+    expect((await provider.getBalance(user1.address)).sub(initialBalance)).closeTo("129042985032344", "10000000000000");
   });
 
   it("refund execution fee callback", async () => {
@@ -290,7 +294,7 @@ describe("Exchange.MarketIncreaseOrder", () => {
 
     expect((await provider.getBalance(user1.address)).sub(initialBalance)).eq(0);
 
-    expect(await provider.getBalance(mockCallbackReceiver.address)).closeTo("187324985498600", "10000000000000");
+    expect(await provider.getBalance(mockCallbackReceiver.address)).closeTo("109367984874944", "10000000000000");
   });
 
   it("validates reserve", async () => {
@@ -391,7 +395,13 @@ describe("Exchange.MarketIncreaseOrder", () => {
     await dataStore.setUint(keys.positionImpactFactorKey(ethUsdMarket.marketToken, false), decimalToFloat(5, 7));
 
     await handleOrder(fixture, {
-      create: { ...params, initialCollateralDeltaAmount: 0, minOutputAmount: 0, account: user0 },
+      create: {
+        ...params,
+        orderType: OrderType.MarketDecrease,
+        initialCollateralDeltaAmount: expandDecimals(800, 6),
+        sizeDeltaUsd: decimalToFloat(1 * 1000),
+        acceptablePrice: expandDecimals(5000, 12),
+      },
       execute: {
         expectedCancellationReason: "LiquidatablePosition",
       },

@@ -39,7 +39,6 @@ describe("ShiftStoreUtils", () => {
       getItemKeys: getShiftKeys,
       getAccountItemCount: getAccountShiftCount,
       getAccountItemKeys: getAccountShiftKeys,
-      expectedPropsLength: 2,
     });
   });
 });

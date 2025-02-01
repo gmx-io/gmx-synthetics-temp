@@ -48,6 +48,7 @@ describe("GlvWithdrawalStoreUtils", () => {
       getItemKeys: getGlvWithdrawalKeys,
       getAccountItemCount: getAccountGlvWithdrawalCount,
       getAccountItemKeys: getAccountGlvWithdrawalKeys,
+      expectedPropsLength: 4,
     });
   });
 });

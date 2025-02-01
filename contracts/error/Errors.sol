@@ -30,10 +30,13 @@ library Errors {
     error InvalidBaseKey(bytes32 baseKey);
     error ConfigValueExceedsAllowedRange(bytes32 baseKey, uint256 value);
     error InvalidClaimableFactor(uint256 value);
+    error InvalidClaimableReductionFactor(uint256 value);
     error OracleProviderAlreadyExistsForToken(address token);
     error PriceFeedAlreadyExistsForToken(address token);
     error DataStreamIdAlreadyExistsForToken(address token);
     error MaxFundingFactorPerSecondLimitExceeded(uint256 maxFundingFactorPerSecond, uint256 limit);
+    error InvalidPositionImpactPoolDistributionRate(uint256 distributionAmount, uint256 positionImpactPoolAmount);
+    error MaxDataListLengthExceeded(uint256 dataLength, uint256 maxDataLength);
 
     // ContributorHandler errors
     error InvalidSetContributorPaymentInput(uint256 tokensLength, uint256 amountsLength);
@@ -154,6 +157,7 @@ library Errors {
     error InsufficientExecutionGas(uint256 startingGas, uint256 estimatedGasLimit, uint256 minAdditionalGasForExecution);
     error InsufficientHandleExecutionErrorGas(uint256 gas, uint256 minHandleExecutionErrorGas);
     error InsufficientGasForCancellation(uint256 gas, uint256 minHandleExecutionErrorGas);
+    error InsufficientGasForAutoCancellation(uint256 gas, uint256 minHandleExecutionErrorGas);
 
     // MarketFactory errors
     error MarketAlreadyExists(bytes32 salt, address existingMarketAddress);
@@ -252,6 +256,7 @@ library Errors {
     // BaseOrderUtils errors
     error EmptyOrder();
     error UnsupportedOrderType(uint256 orderType);
+    error UnsupportedOrderTypeForAutoCancellation(uint256 orderType);
     error InvalidOrderPrices(
         uint256 primaryPriceMin,
         uint256 primaryPriceMax,
@@ -368,6 +373,7 @@ library Errors {
     // AccountUtils errors
     error EmptyAccount();
     error EmptyReceiver();
+    error DataListLengthExceeded();
 
     // Array errors
     error CompactedArrayOutOfBounds(
@@ -401,7 +407,6 @@ library Errors {
     error MinLongTokens(uint256 received, uint256 expected);
     error MinShortTokens(uint256 received, uint256 expected);
     error InsufficientMarketTokens(uint256 balance, uint256 expected);
-    error InsufficientWntAmount(uint256 wntAmount, uint256 executionFee);
     error InvalidPoolValueForWithdrawal(int256 poolValue);
 
     // Uint256Mask errors
@@ -420,4 +425,12 @@ library Errors {
 
     // Reader errors
     error EmptyMarketPrice(address market);
+
+    // Multichain errors
+    error EmptyMultichainDepositAmount();
+    error EmptyMultichainWithdrawalAmount();
+    error InsufficientMultichainBalance();
+    error InvalidMultichainProviderSignature();
+    error InvalidStargatePool();
+    error InvalidLzEndpoint();
 }

@@ -5,7 +5,7 @@ import { scenes } from "../../scenes";
 import { deployFixture } from "../../../utils/fixture";
 import { DecreasePositionSwapType } from "../../../utils/order";
 import { expandDecimals, decimalToFloat } from "../../../utils/math";
-import { getPositionKey } from "../../../utils/position";
+import { getPendingImpactAmountKey, getPositionKey } from "../../../utils/position";
 import { getPoolAmount, getMarketTokenPriceWithPoolValue } from "../../../utils/market";
 import { prices } from "../../../utils/prices";
 import * as keys from "../../../utils/keys";
@@ -55,9 +55,9 @@ describe("Exchange.DecreasePosition", () => {
       ),
       (positionInfo) => {
         expect(positionInfo.position.numbers.collateralAmount).eq(expandDecimals(50_000, 6));
-        expect(positionInfo.position.numbers.sizeInTokens).eq("39920000000000000001"); // 39.920000000000000001
+        expect(positionInfo.position.numbers.sizeInTokens).eq("40000000000000000000"); // 40.00
         expect(positionInfo.position.numbers.sizeInUsd).eq(decimalToFloat(200_000));
-        expect(positionInfo.basePnlUsd).eq("-399999999999999995000000000000000"); // -400
+        expect(positionInfo.basePnlUsd).eq("0"); // no pnl on position increase
       }
     );
 
@@ -69,7 +69,8 @@ describe("Exchange.DecreasePosition", () => {
       }
     );
 
-    expect(await dataStore.getUint(keys.positionImpactPoolAmountKey(ethUsdMarket.marketToken))).eq("79999999999999999"); // 0.079999999999999999 ETH
+    expect(await dataStore.getUint(keys.positionImpactPoolAmountKey(ethUsdMarket.marketToken))).eq(0);
+    expect(await dataStore.getInt(getPendingImpactAmountKey(positionKey0))).eq("-79999999999999999"); // -0.079999999999999999;
 
     expect(await wnt.balanceOf(user1.address)).eq(0);
     expect(await usdc.balanceOf(user1.address)).eq(0);
@@ -85,13 +86,14 @@ describe("Exchange.DecreasePosition", () => {
       },
     });
 
-    expect(await dataStore.getUint(keys.positionImpactPoolAmountKey(ethUsdMarket.marketToken))).eq("72399999999999999"); // 0.072399999999999999 ETH
+    expect(await dataStore.getInt(getPendingImpactAmountKey(positionKey0))).eq("-72000000000000000"); // -0.072;
+    expect(await dataStore.getUint(keys.positionImpactPoolAmountKey(ethUsdMarket.marketToken))).eq("8000000000000000"); // 0.008 ETH
 
     expect(await wnt.balanceOf(user1.address)).eq(0);
     expect(await usdc.balanceOf(user1.address)).eq(0);
 
     expect(await getPoolAmount(dataStore, ethUsdMarket.marketToken, wnt.address)).eq(expandDecimals(1000, 18));
-    expect(await getPoolAmount(dataStore, ethUsdMarket.marketToken, usdc.address)).eq("1000002000001"); // 1,000,002
+    expect(await getPoolAmount(dataStore, ethUsdMarket.marketToken, usdc.address)).eq(expandDecimals(1_000_040, 6));
 
     await usingResult(
       reader.getPositionInfo(
@@ -104,18 +106,18 @@ describe("Exchange.DecreasePosition", () => {
         true
       ),
       (positionInfo) => {
-        expect(positionInfo.position.numbers.collateralAmount).eq("49997999999"); // 49997.999999
-        expect(positionInfo.position.numbers.sizeInTokens).eq("35928000000000000000"); // 35.928
+        expect(positionInfo.position.numbers.collateralAmount).eq(expandDecimals(49_960, 6));
+        expect(positionInfo.position.numbers.sizeInTokens).eq("36000000000000000000"); // 36.00 - price impact not included
         expect(positionInfo.position.numbers.sizeInUsd).eq(decimalToFloat(180_000));
-        expect(positionInfo.basePnlUsd).eq(decimalToFloat(-360));
+        expect(positionInfo.basePnlUsd).eq(decimalToFloat(0)); // no pnl on position increase
       }
     );
 
     await usingResult(
       getMarketTokenPriceWithPoolValue(fixture, { prices: prices.ethUsdMarket }),
       ([marketTokenPrice, poolValueInfo]) => {
-        expect(marketTokenPrice).eq("1000000000000166666667500000000");
-        expect(poolValueInfo.poolValue).eq("6000000000001000000005000000000000000");
+        expect(marketTokenPrice).eq("1000000000000000000000000000000");
+        expect(poolValueInfo.poolValue).eq("6000000000000000000000000000000000000");
       }
     );
   });

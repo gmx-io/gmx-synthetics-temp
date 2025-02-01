@@ -48,6 +48,7 @@ describe("GlvDepositStoreUtils", () => {
       getItemKeys: getGlvDepositKeys,
       getAccountItemCount: getAccountGlvDepositCount,
       getAccountItemKeys: getAccountGlvDepositKeys,
+      expectedPropsLength: 4,
     });
   });
 });

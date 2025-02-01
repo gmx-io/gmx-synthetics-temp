@@ -40,6 +40,7 @@ library ShiftUtils {
         uint256 minMarketTokens;
         uint256 executionFee;
         uint256 callbackGasLimit;
+        bytes32[] dataList;
     }
 
     struct CreateShiftCache {
@@ -88,7 +89,7 @@ library ShiftUtils {
         uint256 wntAmount = shiftVault.recordTransferIn(wnt);
 
         if (wntAmount < params.executionFee) {
-            revert Errors.InsufficientWntAmount(wntAmount, params.executionFee);
+            revert Errors.InsufficientWntAmountForExecutionFee(wntAmount, params.executionFee);
         }
 
         AccountUtils.validateReceiver(params.receiver);
@@ -127,7 +128,8 @@ library ShiftUtils {
                 Chain.currentTimestamp(),
                 params.executionFee,
                 params.callbackGasLimit
-            )
+            ),
+            params.dataList
         );
 
         CallbackUtils.validateCallbackGasLimit(dataStore, shift.callbackGasLimit());
@@ -200,7 +202,8 @@ library ShiftUtils {
             ),
             Withdrawal.Flags(
                 false
-            )
+            ),
+            shift.dataList()
         );
 
         cache.withdrawalKey = NonceUtils.getNextKey(params.dataStore);
@@ -260,7 +263,8 @@ library ShiftUtils {
             ),
             Deposit.Flags(
                 false // shouldUnwrapNativeToken
-            )
+            ),
+            shift.dataList()
         );
 
         cache.depositKey = NonceUtils.getNextKey(params.dataStore);

@@ -95,6 +95,7 @@ export async function createOrder(fixture, overrides) {
   const autoCancel = overrides.autoCancel || false;
   const referralCode = overrides.referralCode || ethers.constants.HashZero;
   const validFromTime = overrides.validFromTime || 0;
+  const dataList = overrides.dataList || [];
 
   if (
     [
@@ -136,6 +137,7 @@ export async function createOrder(fixture, overrides) {
     shouldUnwrapNativeToken,
     autoCancel,
     referralCode,
+    dataList,
   };
 
   const txReceipt = await logGasUsage({

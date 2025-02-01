@@ -28,6 +28,7 @@ contract ShiftHandler is IShiftHandler, BaseHandler {
         ShiftUtils.CreateShiftParams calldata params
     ) external override globalNonReentrant onlyController returns (bytes32) {
         FeatureUtils.validateFeature(dataStore, Keys.createShiftFeatureDisabledKey(address(this)));
+        validateDataListLength(params.dataList.length);
 
         return ShiftUtils.createShift(
             dataStore,

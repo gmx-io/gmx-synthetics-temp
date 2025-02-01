@@ -40,13 +40,15 @@ contract WithdrawalHandler is IWithdrawalHandler, BaseHandler {
         WithdrawalUtils.CreateWithdrawalParams calldata params
     ) external override globalNonReentrant onlyController returns (bytes32) {
         FeatureUtils.validateFeature(dataStore, Keys.createWithdrawalFeatureDisabledKey(address(this)));
+        validateDataListLength(params.dataList.length);
 
         return WithdrawalUtils.createWithdrawal(
             dataStore,
             eventEmitter,
             withdrawalVault,
             account,
-            params
+            params,
+            false // isAtomicWithdrawal
         );
     }
 
@@ -148,7 +150,8 @@ contract WithdrawalHandler is IWithdrawalHandler, BaseHandler {
             eventEmitter,
             withdrawalVault,
             account,
-            params
+            params,
+            true // isAtomicWithdrawal
         );
 
         Withdrawal.Props memory withdrawal = WithdrawalStoreUtils.get(dataStore, key);

@@ -41,6 +41,7 @@ contract OrderHandler is IOrderHandler, BaseOrderHandler {
         IBaseOrderUtils.CreateOrderParams calldata params
     ) external override globalNonReentrant onlyController returns (bytes32) {
         FeatureUtils.validateFeature(dataStore, Keys.createOrderFeatureDisabledKey(address(this), uint256(params.orderType)));
+        validateDataListLength(params.dataList.length);
 
         return OrderUtils.createOrder(
             dataStore,
@@ -165,6 +166,7 @@ contract OrderHandler is IOrderHandler, BaseOrderHandler {
                 order.account(),
                 startingGas,
                 true, // isExternalCall
+                false, // isAutoCancel
                 Keys.USER_INITIATED_CANCEL,
                 ""
             )
@@ -188,7 +190,8 @@ contract OrderHandler is IOrderHandler, BaseOrderHandler {
         this._executeOrder(
             key,
             order,
-            msg.sender
+            msg.sender,
+            true // isSimulation
         );
     }
 
@@ -214,7 +217,8 @@ contract OrderHandler is IOrderHandler, BaseOrderHandler {
         try this._executeOrder{ gas: executionGas }(
             key,
             order,
-            msg.sender
+            msg.sender,
+            false // isSimulation
         ) {
         } catch (bytes memory reasonBytes) {
             _handleOrderError(key, startingGas, reasonBytes);
@@ -229,7 +233,8 @@ contract OrderHandler is IOrderHandler, BaseOrderHandler {
     function _executeOrder(
         bytes32 key,
         Order.Props memory order,
-        address keeper
+        address keeper,
+        bool isSimulation
     ) external onlySelf {
         uint256 startingGas = gasleft();
 
@@ -244,7 +249,7 @@ contract OrderHandler is IOrderHandler, BaseOrderHandler {
         // which would automatically cause the order to be frozen
         // limit increase and limit / trigger decrease orders may fail due to output amount as well and become frozen
         // but only if their acceptablePrice is reached
-        if (params.order.isFrozen() || params.order.orderType() == Order.OrderType.LimitSwap) {
+        if (!isSimulation && (params.order.isFrozen() || params.order.orderType() == Order.OrderType.LimitSwap)) {
             _validateFrozenOrderKeeper(keeper);
         }
 
@@ -324,6 +329,7 @@ contract OrderHandler is IOrderHandler, BaseOrderHandler {
                     msg.sender,
                     startingGas,
                     true, // isExternalCall
+                    false, // isAutoCancel
                     reason,
                     reasonBytes
                 )

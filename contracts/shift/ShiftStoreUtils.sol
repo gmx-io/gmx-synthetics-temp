@@ -23,6 +23,8 @@ library ShiftStoreUtils {
     bytes32 public constant EXECUTION_FEE = keccak256(abi.encode("EXECUTION_FEE"));
     bytes32 public constant CALLBACK_GAS_LIMIT = keccak256(abi.encode("CALLBACK_GAS_LIMIT"));
 
+    bytes32 public constant DATA_LIST = keccak256(abi.encode("DATA_LIST"));
+
     function get(DataStore dataStore, bytes32 key) external view returns (Shift.Props memory) {
         Shift.Props memory shift;
         if (!dataStore.containsBytes32(Keys.SHIFT_LIST, key)) {
@@ -71,6 +73,10 @@ library ShiftStoreUtils {
 
         shift.setCallbackGasLimit(dataStore.getUint(
             keccak256(abi.encode(key, CALLBACK_GAS_LIMIT))
+        ));
+
+        shift.setDataList(dataStore.getBytes32Array(
+            keccak256(abi.encode(key, DATA_LIST))
         ));
 
         return shift;
@@ -141,6 +147,11 @@ library ShiftStoreUtils {
             keccak256(abi.encode(key, CALLBACK_GAS_LIMIT)),
             shift.callbackGasLimit()
         );
+
+        dataStore.setBytes32Array(
+            keccak256(abi.encode(key, DATA_LIST)),
+            shift.dataList()
+        );
     }
 
     function remove(DataStore dataStore, bytes32 key, address account) external {
@@ -200,6 +211,10 @@ library ShiftStoreUtils {
 
         dataStore.removeUint(
             keccak256(abi.encode(key, CALLBACK_GAS_LIMIT))
+        );
+
+        dataStore.removeBytes32Array(
+            keccak256(abi.encode(key, DATA_LIST))
         );
     }
 

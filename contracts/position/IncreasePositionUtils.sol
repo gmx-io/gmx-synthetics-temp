@@ -39,7 +39,8 @@ library IncreasePositionUtils {
         Price.Props collateralTokenPrice;
         int256 priceImpactUsd;
         int256 priceImpactAmount;
-        uint256 sizeDeltaInTokens;
+        bool balanceWasImproved;
+        uint256 baseSizeDeltaInTokens;
         uint256 nextPositionSizeInUsd;
         uint256 nextPositionBorrowingFactor;
     }
@@ -99,7 +100,7 @@ library IncreasePositionUtils {
             );
         }
 
-        (cache.priceImpactUsd, cache.priceImpactAmount, cache.sizeDeltaInTokens, cache.executionPrice) = PositionUtils.getExecutionPriceForIncrease(params, prices.indexTokenPrice);
+        (cache.priceImpactUsd, cache.priceImpactAmount, cache.baseSizeDeltaInTokens, cache.executionPrice, cache.balanceWasImproved) = PositionUtils.getExecutionPriceForIncrease(params, prices.indexTokenPrice);
 
         // process the collateral for the given position and order
         PositionPricingUtils.PositionFees memory fees;
@@ -107,7 +108,7 @@ library IncreasePositionUtils {
             params,
             cache.collateralTokenPrice,
             collateralIncrementAmount.toInt256(),
-            cache.priceImpactUsd
+            cache.balanceWasImproved
         );
 
         // check if there is sufficient collateral for the position
@@ -119,14 +120,9 @@ library IncreasePositionUtils {
         }
         params.position.setCollateralAmount(Calc.sumReturnUint256(params.position.collateralAmount(), cache.collateralDeltaAmount));
 
-        // if there is a positive impact, the impact pool amount should be reduced
-        // if there is a negative impact, the impact pool amount should be increased
-        MarketUtils.applyDeltaToPositionImpactPool(
-            params.contracts.dataStore,
-            params.contracts.eventEmitter,
-            params.market.marketToken,
-            -cache.priceImpactAmount
-        );
+        // Instead of applying the delta to the pool, store it using the positionKey
+        // No need to flip the priceImpactAmount sign since it isn't applied to the pool, it's just stored
+        params.position.setPendingImpactAmount(params.position.pendingImpactAmount() + cache.priceImpactAmount);
 
         cache.nextPositionSizeInUsd = params.position.sizeInUsd() + params.order.sizeDeltaUsd();
         cache.nextPositionBorrowingFactor = MarketUtils.getCumulativeBorrowingFactor(
@@ -144,7 +140,7 @@ library IncreasePositionUtils {
         PositionUtils.incrementClaimableFundingAmount(params, fees);
 
         params.position.setSizeInUsd(cache.nextPositionSizeInUsd);
-        params.position.setSizeInTokens(params.position.sizeInTokens() + cache.sizeDeltaInTokens);
+        params.position.setSizeInTokens(params.position.sizeInTokens() + cache.baseSizeDeltaInTokens);
 
         params.position.setFundingFeeAmountPerSize(fees.funding.latestFundingFeeAmountPerSize);
         params.position.setLongTokenClaimableFundingAmountPerSize(fees.funding.latestLongTokenClaimableFundingAmountPerSize);
@@ -158,7 +154,7 @@ library IncreasePositionUtils {
         PositionUtils.updateOpenInterest(
             params,
             params.order.sizeDeltaUsd().toInt256(),
-            cache.sizeDeltaInTokens.toInt256()
+            cache.baseSizeDeltaInTokens.toInt256()
         );
 
         if (params.order.sizeDeltaUsd() > 0) {
@@ -234,7 +230,7 @@ library IncreasePositionUtils {
         eventParams.executionPrice = cache.executionPrice;
         eventParams.collateralTokenPrice = cache.collateralTokenPrice;
         eventParams.sizeDeltaUsd = params.order.sizeDeltaUsd();
-        eventParams.sizeDeltaInTokens = cache.sizeDeltaInTokens;
+        eventParams.sizeDeltaInTokens = cache.baseSizeDeltaInTokens; // event key remains unchanged as it's used for e.g. analytics
         eventParams.collateralDeltaAmount = cache.collateralDeltaAmount;
         eventParams.priceImpactUsd = cache.priceImpactUsd;
         eventParams.priceImpactAmount = cache.priceImpactAmount;
@@ -252,14 +248,14 @@ library IncreasePositionUtils {
         PositionUtils.UpdatePositionParams memory params,
         Price.Props memory collateralTokenPrice,
         int256 collateralDeltaAmount,
-        int256 priceImpactUsd
+        bool balanceWasImproved
     ) internal returns (int256, PositionPricingUtils.PositionFees memory) {
         PositionPricingUtils.GetPositionFeesParams memory getPositionFeesParams = PositionPricingUtils.GetPositionFeesParams(
             params.contracts.dataStore, // dataStore
             params.contracts.referralStorage, // referralStorage
             params.position, // position
             collateralTokenPrice, // collateralTokenPrice
-            priceImpactUsd > 0, // forPositiveImpact
+            balanceWasImproved, // balanceWasImproved
             params.market.longToken, // longToken
             params.market.shortToken, // shortToken
             params.order.sizeDeltaUsd(), // sizeDeltaUsd

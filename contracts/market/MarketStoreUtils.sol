@@ -86,7 +86,7 @@ library MarketStoreUtils {
         );
     }
 
-    function remove(DataStore dataStore, address key) external {
+    function remove(DataStore dataStore, address key, bytes32 salt) external {
         if (!dataStore.containsAddress(Keys.MARKET_LIST, key)) {
             revert Errors.MarketNotFound(key);
         }
@@ -110,6 +110,10 @@ library MarketStoreUtils {
 
         dataStore.removeAddress(
             keccak256(abi.encode(key, SHORT_TOKEN))
+        );
+
+        dataStore.removeAddress(
+            getMarketSaltHash(salt)
         );
     }
 

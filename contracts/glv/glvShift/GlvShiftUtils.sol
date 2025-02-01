@@ -139,7 +139,8 @@ library GlvShiftUtils {
                 updatedAtTime: glvShift.updatedAtTime(),
                 executionFee: 0,
                 callbackGasLimit: 0
-            })
+            }),
+            new bytes32[](0)
         );
 
         cache.shiftKey = NonceUtils.getNextKey(params.dataStore);

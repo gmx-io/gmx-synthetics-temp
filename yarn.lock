@@ -1184,6 +1184,11 @@
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
+"@layerzerolabs/lz-evm-protocol-v2@^3.0.30":
+  version "3.0.30"
+  resolved "https://registry.yarnpkg.com/@layerzerolabs/lz-evm-protocol-v2/-/lz-evm-protocol-v2-3.0.30.tgz#a4319117042c14a29e38420fbfeffcb0dae30de5"
+  integrity sha512-N0eTiMCF4+JFn2tP3CfatingRkdmwgJqJWMhKgCJjsavG+ADwLlFSZ9RgpIWpt3gt6/DCEE4mdWe0qvF63chTA==
+
 "@ledgerhq/connect-kit-loader@^1.1.0":
   version "1.1.2"
   resolved "https://registry.yarnpkg.com/@ledgerhq/connect-kit-loader/-/connect-kit-loader-1.1.2.tgz#d550e3c1f046e4c796f32a75324b03606b7e226a"

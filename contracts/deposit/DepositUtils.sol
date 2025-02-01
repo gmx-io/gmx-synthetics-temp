@@ -50,6 +50,7 @@ library DepositUtils {
         bool shouldUnwrapNativeToken;
         uint256 executionFee;
         uint256 callbackGasLimit;
+        bytes32[] dataList;
     }
 
     // @dev creates a deposit
@@ -120,7 +121,8 @@ library DepositUtils {
             ),
             Deposit.Flags(
                 params.shouldUnwrapNativeToken
-            )
+            ),
+            params.dataList
         );
 
         CallbackUtils.validateCallbackGasLimit(dataStore, deposit.callbackGasLimit());

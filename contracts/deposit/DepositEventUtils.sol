@@ -28,13 +28,14 @@ library DepositEventUtils {
     ) external {
         EventUtils.EventLogData memory eventData;
 
-        eventData.addressItems.initItems(6);
+        eventData.addressItems.initItems(7);
         eventData.addressItems.setItem(0, "account", deposit.account());
         eventData.addressItems.setItem(1, "receiver", deposit.receiver());
         eventData.addressItems.setItem(2, "callbackContract", deposit.callbackContract());
         eventData.addressItems.setItem(3, "market", deposit.market());
         eventData.addressItems.setItem(4, "initialLongToken", deposit.initialLongToken());
         eventData.addressItems.setItem(5, "initialShortToken", deposit.initialShortToken());
+        eventData.addressItems.setItem(6, "uiFeeReceiver", deposit.uiFeeReceiver());
 
         eventData.addressItems.initArrayItems(2);
         eventData.addressItems.setItem(0, "longTokenSwapPath", deposit.longTokenSwapPath());

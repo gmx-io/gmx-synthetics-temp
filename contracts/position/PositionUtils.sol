@@ -84,6 +84,8 @@ library PositionUtils {
         int256 uncappedBasePnlUsd;
         uint256 sizeDeltaInTokens;
         int256 priceImpactUsd;
+        int256 proportionalPendingImpactAmount;
+        int256 proportionalImpactPendingUsd;
         uint256 priceImpactDiffUsd;
         DecreasePositionCollateralValuesOutput output;
     }
@@ -147,12 +149,20 @@ library PositionUtils {
         uint256 collateralUsd;
         int256 usdDeltaForPriceImpact;
         int256 priceImpactUsd;
-        bool hasPositiveImpact;
+        bool balanceWasImproved;
+    }
+
+    struct GetExecutionPriceForIncreaseCache {
+        int256 priceImpactUsd;
+        int256 priceImpactAmount;
+        uint256 baseSizeDeltaInTokens;
+        bool balanceWasImproved;
+        uint256 executionPrice;
     }
 
     struct GetExecutionPriceForDecreaseCache {
         int256 priceImpactUsd;
-        uint256 priceImpactDiffUsd;
+        bool balanceWasImproved;
         uint256 executionPrice;
     }
 
@@ -335,7 +345,7 @@ library PositionUtils {
         // calculate the usdDeltaForPriceImpact for fully closing the position
         cache.usdDeltaForPriceImpact = -position.sizeInUsd().toInt256();
 
-        cache.priceImpactUsd = PositionPricingUtils.getPriceImpactUsd(
+        (cache.priceImpactUsd, cache.balanceWasImproved) = PositionPricingUtils.getPriceImpactUsd(
             PositionPricingUtils.GetPriceImpactUsdParams(
                 dataStore,
                 market,
@@ -343,8 +353,6 @@ library PositionUtils {
                 position.isLong()
             )
         );
-
-        cache.hasPositiveImpact = cache.priceImpactUsd > 0;
 
         // even if there is a large positive price impact, positions that would be liquidated
         // if the positive price impact is reduced should not be allowed to be created
@@ -373,7 +381,7 @@ library PositionUtils {
             referralStorage, // referralStorage
             position, // position
             cache.collateralTokenPrice, //collateralTokenPrice
-            cache.hasPositiveImpact, // forPositiveImpact
+            cache.balanceWasImproved, // balanceWasImproved
             market.longToken, // longToken
             market.shortToken, // shortToken
             position.sizeInUsd(), // sizeDeltaUsd
@@ -617,11 +625,11 @@ library PositionUtils {
         );
     }
 
-    // returns priceImpactUsd, priceImpactAmount, sizeDeltaInTokens, executionPrice
+    // returns priceImpactUsd, priceImpactAmount, baseSizeDeltaInTokens, executionPrice, balanceWasImproved
     function getExecutionPriceForIncrease(
         UpdatePositionParams memory params,
         Price.Props memory indexTokenPrice
-    ) external view returns (int256, int256, uint256, uint256) {
+    ) external view returns (int256, int256, uint256, uint256, bool) {
         // note that the executionPrice is not validated against the order.acceptablePrice value
         // if the sizeDeltaUsd is zero
         // for limit orders the order.triggerPrice should still have been validated
@@ -629,10 +637,12 @@ library PositionUtils {
             // increase order:
             //     - long: use the larger price
             //     - short: use the smaller price
-            return (0, 0, 0, indexTokenPrice.pickPrice(params.position.isLong()));
+            return (0, 0, 0, indexTokenPrice.pickPrice(params.position.isLong()), false);
         }
 
-        int256 priceImpactUsd = PositionPricingUtils.getPriceImpactUsd(
+        GetExecutionPriceForIncreaseCache memory cache;
+
+        (cache.priceImpactUsd, cache.balanceWasImproved) = PositionPricingUtils.getPriceImpactUsd(
             PositionPricingUtils.GetPriceImpactUsdParams(
                 params.contracts.dataStore,
                 params.market,
@@ -641,12 +651,19 @@ library PositionUtils {
             )
         );
 
-        // cap priceImpactUsd based on the amount available in the position impact pool
-        priceImpactUsd = MarketUtils.getCappedPositionImpactUsd(
+        // cap positive priceImpactUsd based on the amount available in the position impact pool
+        cache.priceImpactUsd = MarketUtils.capPositiveImpactUsdByPositionImpactPool(
             params.contracts.dataStore,
             params.market.marketToken,
             indexTokenPrice,
-            priceImpactUsd,
+            cache.priceImpactUsd
+        );
+
+        // cap positive priceImpactUsd based on the max positive position impact factor
+        cache.priceImpactUsd = MarketUtils.capPositiveImpactUsdByMaxPositionImpact(
+            params.contracts.dataStore,
+            params.market.marketToken,
+            cache.priceImpactUsd,
             params.order.sizeDeltaUsd()
         );
 
@@ -666,35 +683,33 @@ library PositionUtils {
         // if price impact is negative, the sizeDeltaInTokens would be increased by the priceImpactAmount
         // the priceImpactAmount should be maximized
 
-        int256 priceImpactAmount;
-
-        if (priceImpactUsd > 0) {
+        if (cache.priceImpactUsd > 0) {
             // use indexTokenPrice.max and round down to minimize the priceImpactAmount
-            priceImpactAmount = priceImpactUsd / indexTokenPrice.max.toInt256();
+            cache.priceImpactAmount = cache.priceImpactUsd / indexTokenPrice.max.toInt256();
         } else {
             // use indexTokenPrice.min and round up to maximize the priceImpactAmount
-            priceImpactAmount = Calc.roundUpMagnitudeDivision(priceImpactUsd, indexTokenPrice.min);
+            cache.priceImpactAmount = Calc.roundUpMagnitudeDivision(cache.priceImpactUsd, indexTokenPrice.min);
         }
 
-        uint256 baseSizeDeltaInTokens;
+        cache.baseSizeDeltaInTokens;
 
         if (params.position.isLong()) {
             // round the number of tokens for long positions down
-            baseSizeDeltaInTokens = params.order.sizeDeltaUsd() / indexTokenPrice.max;
+            cache.baseSizeDeltaInTokens = params.order.sizeDeltaUsd() / indexTokenPrice.max;
         } else {
             // round the number of tokens for short positions up
-            baseSizeDeltaInTokens = Calc.roundUpDivision(params.order.sizeDeltaUsd(), indexTokenPrice.min);
+            cache.baseSizeDeltaInTokens = Calc.roundUpDivision(params.order.sizeDeltaUsd(), indexTokenPrice.min);
         }
 
         int256 sizeDeltaInTokens;
         if (params.position.isLong()) {
-            sizeDeltaInTokens = baseSizeDeltaInTokens.toInt256() + priceImpactAmount;
+            sizeDeltaInTokens = cache.baseSizeDeltaInTokens.toInt256() + cache.priceImpactAmount;
         } else {
-            sizeDeltaInTokens = baseSizeDeltaInTokens.toInt256() - priceImpactAmount;
+            sizeDeltaInTokens = cache.baseSizeDeltaInTokens.toInt256() - cache.priceImpactAmount;
         }
 
         if (sizeDeltaInTokens < 0) {
-            revert Errors.PriceImpactLargerThanOrderSize(priceImpactUsd, params.order.sizeDeltaUsd());
+            revert Errors.PriceImpactLargerThanOrderSize(cache.priceImpactUsd, params.order.sizeDeltaUsd());
         }
 
         // using increase of long positions as an example
@@ -703,21 +718,21 @@ library PositionUtils {
         // baseSizeDeltaInTokens = 5000 / 2000 = 2.5
         // sizeDeltaInTokens = 2.5 - 0.5 = 2
         // executionPrice = 5000 / 2 = $2500
-        uint256 executionPrice = BaseOrderUtils.getExecutionPriceForIncrease(
+        cache.executionPrice = BaseOrderUtils.getExecutionPriceForIncrease(
             params.order.sizeDeltaUsd(),
             sizeDeltaInTokens.toUint256(),
             params.order.acceptablePrice(),
             params.position.isLong()
         );
 
-        return (priceImpactUsd, priceImpactAmount, sizeDeltaInTokens.toUint256(), executionPrice);
+        return (cache.priceImpactUsd, cache.priceImpactAmount, cache.baseSizeDeltaInTokens, cache.executionPrice, cache.balanceWasImproved);
     }
 
-    // returns priceImpactUsd, priceImpactDiffUsd, executionPrice
+    // returns priceImpactUsd, executionPrice, balanceWasImproved
     function getExecutionPriceForDecrease(
         UpdatePositionParams memory params,
         Price.Props memory indexTokenPrice
-    ) external view returns (int256, uint256, uint256) {
+    ) external view returns (int256, uint256, bool) {
         uint256 sizeDeltaUsd = params.order.sizeDeltaUsd();
 
         // note that the executionPrice is not validated against the order.acceptablePrice value
@@ -727,12 +742,12 @@ library PositionUtils {
             // decrease order:
             //     - long: use the smaller price
             //     - short: use the larger price
-            return (0, 0, indexTokenPrice.pickPrice(!params.position.isLong()));
+            return (0, indexTokenPrice.pickPrice(!params.position.isLong()), false);
         }
 
         GetExecutionPriceForDecreaseCache memory cache;
 
-        cache.priceImpactUsd = PositionPricingUtils.getPriceImpactUsd(
+        (cache.priceImpactUsd, cache.balanceWasImproved) = PositionPricingUtils.getPriceImpactUsd(
             PositionPricingUtils.GetPriceImpactUsdParams(
                 params.contracts.dataStore,
                 params.market,
@@ -741,36 +756,21 @@ library PositionUtils {
             )
         );
 
-        // cap priceImpactUsd based on the amount available in the position impact pool
-        cache.priceImpactUsd = MarketUtils.getCappedPositionImpactUsd(
+        // cap positive priceImpactUsd based on the amount available in the position impact pool
+        cache.priceImpactUsd = MarketUtils.capPositiveImpactUsdByPositionImpactPool(
             params.contracts.dataStore,
             params.market.marketToken,
             indexTokenPrice,
-            cache.priceImpactUsd,
-            sizeDeltaUsd
+            cache.priceImpactUsd
         );
 
-        if (cache.priceImpactUsd < 0) {
-            uint256 maxPriceImpactFactor = MarketUtils.getMaxPositionImpactFactor(
-                params.contracts.dataStore,
-                params.market.marketToken,
-                false
-            );
-
-            // convert the max price impact to the min negative value
-            // e.g. if sizeDeltaUsd is 10,000 and maxPriceImpactFactor is 2%
-            // then minPriceImpactUsd = -200
-            int256 minPriceImpactUsd = -Precision.applyFactor(sizeDeltaUsd, maxPriceImpactFactor).toInt256();
-
-            // cap priceImpactUsd to the min negative value and store the difference in priceImpactDiffUsd
-            // e.g. if priceImpactUsd is -500 and minPriceImpactUsd is -200
-            // then set priceImpactDiffUsd to -200 - -500 = 300
-            // set priceImpactUsd to -200
-            if (cache.priceImpactUsd < minPriceImpactUsd) {
-                cache.priceImpactDiffUsd = (minPriceImpactUsd - cache.priceImpactUsd).toUint256();
-                cache.priceImpactUsd = minPriceImpactUsd;
-            }
-        }
+        // cap positive priceImpactUsd based on the max positive position impact factor
+        cache.priceImpactUsd = MarketUtils.capPositiveImpactUsdByMaxPositionImpact(
+            params.contracts.dataStore,
+            params.market.marketToken,
+            cache.priceImpactUsd,
+            params.order.sizeDeltaUsd()
+        );
 
         // the executionPrice is calculated after the price impact is capped
         // so the output amount directly received by the user may not match
@@ -786,7 +786,7 @@ library PositionUtils {
             params.position.isLong()
         );
 
-        return (cache.priceImpactUsd, cache.priceImpactDiffUsd, cache.executionPrice);
+        return (cache.priceImpactUsd, cache.executionPrice, cache.balanceWasImproved);
     }
 
 }

@@ -39,6 +39,7 @@ export async function createShift(fixture, overrides: any = {}) {
   const minMarketTokens = overrides.minMarketTokens || bigNumberify(0);
   const executionFee = overrides.executionFee || "1000000000000000";
   const callbackGasLimit = overrides.callbackGasLimit || bigNumberify(0);
+  const dataList = overrides.dataList || [];
 
   await wnt.mint(shiftVault.address, executionFee);
 
@@ -54,6 +55,7 @@ export async function createShift(fixture, overrides: any = {}) {
     minMarketTokens,
     executionFee,
     callbackGasLimit,
+    dataList,
   };
 
   const txReceipt = await logGasUsage({

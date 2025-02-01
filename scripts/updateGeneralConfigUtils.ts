@@ -274,14 +274,6 @@ const processGeneralConfig = async ({ generalConfig, oracleConfig, handleConfig 
       `requestExpirationTime`
     );
   }
-
-  await handleConfig(
-    "bool",
-    keys.IGNORE_OPEN_INTEREST_FOR_USAGE_FACTOR,
-    "0x",
-    generalConfig.ignoreOpenInterestForUsageFactor,
-    `ignoreOpenInterestForUsageFactor`
-  );
 };
 
 export async function updateGeneralConfig({ write }) {

@@ -1,5 +1,5 @@
 import { ethers } from "ethers";
-const { keccak256, toUtf8Bytes } = ethers.utils;
+const { getAddress, keccak256, toUtf8Bytes } = ethers.utils;
 
 export function encodeData(dataTypes, dataValues) {
   const bytes = ethers.utils.defaultAbiCoder.encode(dataTypes, dataValues);
@@ -23,4 +23,9 @@ export function hashString(string) {
 
 export function keccakString(string) {
   return keccak256(toUtf8Bytes(string));
+}
+
+export function getAddressFromHash(hash: string) {
+  // Extract the last 20 bytes of the hash to construct the address
+  return getAddress("0x" + hash.slice(-40));
 }

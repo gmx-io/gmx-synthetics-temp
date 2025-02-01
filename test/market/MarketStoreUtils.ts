@@ -40,7 +40,7 @@ describe("MarketStoreUtils", () => {
       return await marketStoreUtilsTest.setMarket(dataStore.address, key, marketType, sampleItem);
     };
     const removeItem = async (dataStore, itemKey) => {
-      return await marketStoreUtilsTest.removeMarket(dataStore.address, itemKey);
+      return await marketStoreUtilsTest.removeMarket(dataStore.address, itemKey, marketType);
     };
 
     const emptyStoreItem = await getEmptyItem();

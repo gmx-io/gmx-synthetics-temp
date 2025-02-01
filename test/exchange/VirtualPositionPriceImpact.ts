@@ -193,7 +193,7 @@ describe("Exchange.VirtualPositionPriceImpact", () => {
       async ({ executeResult }) => {
         const { logs } = executeResult;
         const positionIncreaseInfo = getEventData(logs, "PositionDecrease");
-        expect(positionIncreaseInfo.priceImpactUsd).eq("199999999999999996294009356670000"); // 200
+        expect(positionIncreaseInfo.priceImpactUsd).eq(0); // positive impact is capped by the impact pool amount which is 0
       }
     );
   });

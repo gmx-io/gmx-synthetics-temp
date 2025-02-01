@@ -14,6 +14,8 @@ import "./ReferralEventUtils.sol";
 
 import "../utils/Precision.sol";
 
+import "../feature/FeatureUtils.sol";
+
 // @title ReferralUtils
 // @dev Library for referral functions
 library ReferralUtils {
@@ -106,6 +108,43 @@ library ReferralUtils {
         );
     }
 
+    // @dev Claims affiliate rewards for the given markets and tokens and sends the rewards to the specified receiver.
+    // @param dataStore The data store instance to use.
+    // @param eventEmitter The event emitter instance to use.
+    // @param markets An array of market addresses
+    // @param tokens An array of token addresses, corresponding to the given markets
+    // @param receiver The address to which the claimed rewards should be sent
+    // @param account The affiliate's address.
+    function batchClaimAffiliateRewards(
+        DataStore dataStore,
+        EventEmitter eventEmitter,
+        address[] memory markets,
+        address[] memory tokens,
+        address receiver,
+        address account
+    ) external returns (uint256[] memory) {
+        if (markets.length != tokens.length) {
+            revert Errors.InvalidClaimAffiliateRewardsInput(markets.length, tokens.length);
+        }
+
+        FeatureUtils.validateFeature(dataStore, Keys.claimAffiliateRewardsFeatureDisabledKey(address(this)));
+
+        uint256[] memory claimedAmounts = new uint256[](markets.length);
+
+        for (uint256 i; i < markets.length; i++) {
+            claimedAmounts[i] = claimAffiliateReward(
+                dataStore,
+                eventEmitter,
+                markets[i],
+                tokens[i],
+                account,
+                receiver
+            );
+        }
+
+        return claimedAmounts;
+    }
+
     // @dev Claims the affiliate's reward balance and transfers it to the specified receiver.
     // @param dataStore The data store instance to use.
     // @param eventEmitter The event emitter instance to use.
@@ -120,7 +159,7 @@ library ReferralUtils {
         address token,
         address account,
         address receiver
-    ) external returns (uint256) {
+    ) internal returns (uint256) {
         bytes32 key = Keys.affiliateRewardKey(market, token, account);
 
         uint256 rewardAmount = dataStore.getUint(key);

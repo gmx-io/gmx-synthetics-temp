@@ -13,6 +13,8 @@ import "../market/MarketUtils.sol";
 
 import "../market/MarketToken.sol";
 
+import "../feature/FeatureUtils.sol";
+
 // @title FeeUtils
 // @dev Library for fee actions
 library FeeUtils {
@@ -95,6 +97,38 @@ library FeeUtils {
         );
     }
 
+    function batchClaimFundingFees(
+        DataStore dataStore,
+        EventEmitter eventEmitter,
+        address[] memory markets,
+        address[] memory tokens,
+        address receiver,
+        address account
+    ) external returns (uint256[] memory) {
+        if (markets.length != tokens.length) {
+            revert Errors.InvalidClaimFundingFeesInput(markets.length, tokens.length);
+        }
+
+        FeatureUtils.validateFeature(dataStore, Keys.claimFundingFeesFeatureDisabledKey(address(this)));
+
+        AccountUtils.validateReceiver(receiver);
+
+        uint256[] memory claimedAmounts = new uint256[](markets.length);
+
+        for (uint256 i; i < markets.length; i++) {
+            claimedAmounts[i] = MarketUtils.claimFundingFees(
+                dataStore,
+                eventEmitter,
+                markets[i],
+                tokens[i],
+                account,
+                receiver
+            );
+        }
+
+        return claimedAmounts;
+    }
+
     // @dev claim fees for the specified market
     // @param dataStore DataStore
     // @param eventEmitter EventEmitter
@@ -133,6 +167,36 @@ library FeeUtils {
         return feeAmount;
     }
 
+    function batchClaimUiFees(
+        DataStore dataStore,
+        EventEmitter eventEmitter,
+        address[] memory markets,
+        address[] memory tokens,
+        address receiver,
+        address uiFeeReceiver
+    ) external returns (uint256[] memory) {
+        if (markets.length != tokens.length) {
+            revert Errors.InvalidClaimUiFeesInput(markets.length, tokens.length);
+        }
+
+        FeatureUtils.validateFeature(dataStore, Keys.claimUiFeesFeatureDisabledKey(address(this)));
+
+        uint256[] memory claimedAmounts = new uint256[](markets.length);
+
+        for (uint256 i; i < markets.length; i++) {
+            claimedAmounts[i] = claimUiFees(
+                dataStore,
+                eventEmitter,
+                uiFeeReceiver,
+                markets[i],
+                tokens[i],
+                receiver
+            );
+        }
+
+        return claimedAmounts;
+    }
+
     function claimUiFees(
         DataStore dataStore,
         EventEmitter eventEmitter,
@@ -140,7 +204,7 @@ library FeeUtils {
         address market,
         address token,
         address receiver
-    ) external returns (uint256) {
+    ) internal returns (uint256) {
         AccountUtils.validateReceiver(receiver);
 
         bytes32 key = Keys.claimableUiFeeAmountKey(market, token, uiFeeReceiver);

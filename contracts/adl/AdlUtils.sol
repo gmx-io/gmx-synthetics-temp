@@ -189,7 +189,8 @@ library AdlUtils {
         Order.Props memory order = Order.Props(
             addresses,
             numbers,
-            flags
+            flags,
+            new bytes32[](0)
         );
 
         bytes32 key = NonceUtils.getNextKey(params.dataStore);

@@ -53,6 +53,7 @@ export async function createGlvDeposit(fixture, overrides: any = {}) {
   const shortTokenAmount = bigNumberify(overrides.shortTokenAmount ?? 0);
   const isMarketTokenDeposit = overrides.isMarketTokenDeposit || false;
   const useGlvHandler = Boolean(overrides.useGlvHandler) || false;
+  const dataList = overrides.dataList || [];
 
   const executionFeeToMint = bigNumberify(overrides.executionFeeToMint ?? executionFee);
   await wnt.mint(glvVault.address, executionFeeToMint);
@@ -96,6 +97,7 @@ export async function createGlvDeposit(fixture, overrides: any = {}) {
     callbackGasLimit,
     isMarketTokenDeposit,
     gasUsageLabel,
+    dataList,
   };
 
   const optionalParams = new Set(["gasUsageLabel", "simulate", "simulateExecute"]);
@@ -265,4 +267,6 @@ export function expectGlvDeposit(glvDeposit: any, expected: any) {
       expect(glvDeposit.flags[key], key).eq(expected[key]);
     }
   });
+
+  expect(glvDeposit._dataList).deep.eq(expected.dataList);
 }

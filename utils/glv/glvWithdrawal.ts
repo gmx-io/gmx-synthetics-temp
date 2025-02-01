@@ -49,6 +49,7 @@ export async function createGlvWithdrawal(fixture, overrides: any = {}) {
   const executionFee = bigNumberify(overrides.executionFee ?? "1000000000000000");
   const callbackGasLimit = bigNumberify(overrides.callbackGasLimit ?? 0);
   const useGlvHandler = Boolean(overrides.useGlvHandler) || false;
+  const dataList = overrides.dataList || [];
 
   // allow for overriding executionFeeToMint to trigger InsufficientWntAmount error
   const executionFeeToMint = bigNumberify(overrides.executionFeeToMint ?? executionFee);
@@ -78,6 +79,7 @@ export async function createGlvWithdrawal(fixture, overrides: any = {}) {
     shouldUnwrapNativeToken,
     executionFee,
     callbackGasLimit,
+    dataList,
   };
 
   for (const [key, value] of Object.entries(params)) {

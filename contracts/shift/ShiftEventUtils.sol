@@ -26,12 +26,13 @@ library ShiftEventUtils {
     ) external {
         EventUtils.EventLogData memory eventData;
 
-        eventData.addressItems.initItems(5);
+        eventData.addressItems.initItems(6);
         eventData.addressItems.setItem(0, "account", shift.account());
         eventData.addressItems.setItem(1, "receiver", shift.receiver());
         eventData.addressItems.setItem(2, "callbackContract", shift.callbackContract());
         eventData.addressItems.setItem(3, "fromMarket", shift.fromMarket());
         eventData.addressItems.setItem(4, "toMarket", shift.toMarket());
+        eventData.addressItems.setItem(5, "uiFeeReceiver", shift.uiFeeReceiver());
 
         eventData.uintItems.initItems(5);
         eventData.uintItems.setItem(0, "marketTokenAmount", shift.marketTokenAmount());

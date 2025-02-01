@@ -11,6 +11,7 @@ import { hashString } from "../../utils/hash";
 import { getNextKey } from "../../utils/nonce";
 import { errorsContract } from "../../utils/error";
 import { OrderType, DecreasePositionSwapType, getOrderKeys } from "../../utils/order";
+import * as keys from "../../utils/keys";
 
 describe("ExchangeRouter", () => {
   let fixture;
@@ -47,6 +48,8 @@ describe("ExchangeRouter", () => {
   });
 
   it("createDeposit", async () => {
+    await dataStore.setUint(keys.MAX_DATA_LENGTH, 256);
+    const dataList = [ethers.utils.formatBytes32String("customData")];
     await usdc.mint(user0.address, expandDecimals(50 * 1000, 6));
     await usdc.connect(user0).approve(router.address, expandDecimals(50 * 1000, 6));
     const tx = await exchangeRouter.connect(user0).multicall(
@@ -71,6 +74,7 @@ describe("ExchangeRouter", () => {
             shouldUnwrapNativeToken: true,
             executionFee,
             callbackGasLimit: "200000",
+            dataList,
           },
         ]),
       ],
@@ -94,6 +98,7 @@ describe("ExchangeRouter", () => {
     expect(deposit.numbers.executionFee).eq(expandDecimals(1, 18));
     expect(deposit.numbers.callbackGasLimit).eq("200000");
     expect(deposit.flags.shouldUnwrapNativeToken).eq(true);
+    expect(deposit._dataList).deep.eq(dataList);
 
     await logGasUsage({
       tx,
@@ -103,6 +108,8 @@ describe("ExchangeRouter", () => {
 
   it("createOrder", async () => {
     const referralCode = hashString("referralCode");
+    await dataStore.setUint(keys.MAX_DATA_LENGTH, 256);
+    const dataList = [ethers.utils.formatBytes32String("customData")];
     await usdc.mint(user0.address, expandDecimals(50 * 1000, 6));
     await usdc.connect(user0).approve(router.address, expandDecimals(50 * 1000, 6));
     const tx = await exchangeRouter.connect(user0).multicall(
@@ -134,6 +141,7 @@ describe("ExchangeRouter", () => {
             isLong: true,
             shouldUnwrapNativeToken: true,
             referralCode,
+            dataList,
           },
         ]),
       ],
@@ -163,6 +171,8 @@ describe("ExchangeRouter", () => {
     expect(order.flags.shouldUnwrapNativeToken).eq(true);
     expect(order.flags.isFrozen).eq(false);
 
+    expect(order._dataList).deep.eq(dataList);
+
     await logGasUsage({
       tx,
       label: "exchangeRouter.createOrder",
@@ -177,6 +187,8 @@ describe("ExchangeRouter", () => {
       },
     });
 
+    await dataStore.setUint(keys.MAX_DATA_LENGTH, 256);
+    const dataList = [ethers.utils.formatBytes32String("customData")];
     const marketToken = await contractAt("MarketToken", ethUsdMarket.marketToken);
     await marketToken.connect(user0).approve(router.address, expandDecimals(50 * 1000, 18));
 
@@ -202,6 +214,7 @@ describe("ExchangeRouter", () => {
             shouldUnwrapNativeToken: true,
             executionFee,
             callbackGasLimit: "200000",
+            dataList,
           },
         ]),
       ],
@@ -224,6 +237,8 @@ describe("ExchangeRouter", () => {
     expect(withdrawal.numbers.executionFee).eq(expandDecimals(1, 18));
     expect(withdrawal.numbers.callbackGasLimit).eq("200000");
     expect(withdrawal.flags.shouldUnwrapNativeToken).eq(true);
+
+    expect(withdrawal._dataList).deep.eq(dataList);
 
     await logGasUsage({
       tx,
@@ -262,6 +277,7 @@ describe("ExchangeRouter", () => {
               shouldUnwrapNativeToken: true,
               executionFee,
               callbackGasLimit: "200000",
+              dataList: [],
             },
           ]),
           exchangeRouter.interface.encodeFunctionData("simulateExecuteDeposit", [

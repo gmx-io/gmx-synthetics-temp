@@ -10,6 +10,7 @@ import "../GlvVault.sol";
 import "../GlvUtils.sol";
 import "./GlvDepositEventUtils.sol";
 import "./GlvDepositStoreUtils.sol";
+import "./GlvDepositCalc.sol";
 
 library GlvDepositUtils {
     using GlvDeposit for GlvDeposit.Props;
@@ -33,6 +34,7 @@ library GlvDepositUtils {
         uint256 callbackGasLimit;
         bool shouldUnwrapNativeToken;
         bool isMarketTokenDeposit;
+        bytes32[] dataList;
     }
 
     struct CreateGlvDepositCache {
@@ -180,7 +182,8 @@ library GlvDepositUtils {
             GlvDeposit.Flags({
                 shouldUnwrapNativeToken: params.shouldUnwrapNativeToken,
                 isMarketTokenDeposit: params.isMarketTokenDeposit
-            })
+            }),
+            params.dataList
         );
 
         CallbackUtils.validateCallbackGasLimit(dataStore, params.callbackGasLimit);
@@ -212,7 +215,7 @@ library GlvDepositUtils {
         GlvDepositStoreUtils.remove(params.dataStore, params.key, glvDeposit.account());
 
         // should be called before any tokens are minted
-        _validateFirstGlvDeposit(params, glvDeposit);
+        GlvDepositCalc.validateFirstGlvDeposit(params.dataStore, glvDeposit);
 
         ExecuteGlvDepositCache memory cache;
 
@@ -230,7 +233,7 @@ library GlvDepositUtils {
         GlvToken(payable(glvDeposit.glv())).syncTokenBalance(glvDeposit.market());
 
         cache.glvSupply = GlvToken(payable(glvDeposit.glv())).totalSupply();
-        cache.mintAmount = _getMintAmount(
+        cache.mintAmount = GlvDepositCalc.getMintAmount(
             params.dataStore,
             params.oracle,
             glvDeposit,
@@ -306,60 +309,6 @@ library GlvDepositUtils {
         return cache.mintAmount;
     }
 
-    function _validateFirstGlvDeposit(
-        ExecuteGlvDepositParams memory params,
-        GlvDeposit.Props memory glvDeposit
-    ) internal view {
-        address glv = glvDeposit.glv();
-        uint256 initialGlvTokenSupply = GlvToken(payable(glv)).totalSupply();
-
-        // return if this is not the first glv deposit
-        if (initialGlvTokenSupply != 0) {
-            return;
-        }
-
-        uint256 minGlvTokens = params.dataStore.getUint(Keys.minGlvTokensForFirstGlvDepositKey(glv));
-
-        // return if there is no minGlvTokens requirement
-        if (minGlvTokens == 0) {
-            return;
-        }
-
-        if (glvDeposit.receiver() != RECEIVER_FOR_FIRST_GLV_DEPOSIT) {
-            revert Errors.InvalidReceiverForFirstGlvDeposit(glvDeposit.receiver(), RECEIVER_FOR_FIRST_GLV_DEPOSIT);
-        }
-
-        if (glvDeposit.minGlvTokens() < minGlvTokens) {
-            revert Errors.InvalidMinGlvTokensForFirstGlvDeposit(glvDeposit.minGlvTokens(), minGlvTokens);
-        }
-    }
-
-    function _getMintAmount(
-        DataStore dataStore,
-        Oracle oracle,
-        GlvDeposit.Props memory glvDeposit,
-        uint256 receivedMarketTokens,
-        uint256 glvValue,
-        uint256 glvSupply
-    ) internal view returns (uint256) {
-        Market.Props memory market = MarketUtils.getEnabledMarket(dataStore, glvDeposit.market());
-        MarketPoolValueInfo.Props memory poolValueInfo = MarketUtils.getPoolValueInfo(
-            dataStore,
-            market,
-            oracle.getPrimaryPrice(market.indexToken),
-            oracle.getPrimaryPrice(market.longToken),
-            oracle.getPrimaryPrice(market.shortToken),
-            Keys.MAX_PNL_FACTOR_FOR_DEPOSITS,
-            false // maximize
-        );
-        uint256 marketTokenSupply = MarketUtils.getMarketTokenSupply(MarketToken(payable(market.marketToken)));
-        uint256 receivedMarketTokensUsd = MarketUtils.marketTokenAmountToUsd(
-            receivedMarketTokens,
-            poolValueInfo.poolValue.toUint256(),
-            marketTokenSupply
-        );
-        return GlvUtils.usdToGlvTokenAmount(receivedMarketTokensUsd, glvValue, glvSupply);
-    }
 
     function _processMarketDeposit(
         ExecuteGlvDepositParams memory params,
@@ -407,7 +356,8 @@ library GlvDepositUtils {
                 executionFee: 0,
                 callbackGasLimit: 0
             }),
-            Deposit.Flags({shouldUnwrapNativeToken: false})
+            Deposit.Flags({shouldUnwrapNativeToken: false}),
+            new bytes32[](0) // dataList
         );
 
         bytes32 depositKey = NonceUtils.getNextKey(params.dataStore);

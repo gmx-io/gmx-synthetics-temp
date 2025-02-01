@@ -105,11 +105,11 @@ library SwapPricingUtils {
     //
     // @param params GetPriceImpactUsdParams
     //
-    // @return the price impact in USD
-    function getPriceImpactUsd(GetPriceImpactUsdParams memory params) external view returns (int256) {
+    // @return the price impact in USD and the balanceWasImproved boolean
+    function getPriceImpactUsd(GetPriceImpactUsdParams memory params) external view returns (int256, bool) {
         PoolParams memory poolParams = getNextPoolAmountsUsd(params);
 
-        int256 priceImpactUsd = _getPriceImpactUsd(params.dataStore, params.market, poolParams);
+        (int256 priceImpactUsd, bool balanceWasImproved) = _getPriceImpactUsd(params.dataStore, params.market, poolParams);
 
         // the virtual price impact calculation is skipped if the price impact
         // is positive since the action is helping to balance the pool
@@ -120,10 +120,10 @@ library SwapPricingUtils {
         // not skipping the virtual price impact calculation would lead to
         // a negative price impact for any trade on either pools and would
         // disincentivise the balancing of pools
-        if (priceImpactUsd >= 0) { return priceImpactUsd; }
+        if (priceImpactUsd >= 0) { return (priceImpactUsd, balanceWasImproved); }
 
         if (!params.includeVirtualInventoryImpact) {
-            return priceImpactUsd;
+            return (priceImpactUsd, balanceWasImproved);
         }
 
         // note that the virtual pool for the long token / short token may be different across pools
@@ -140,7 +140,7 @@ library SwapPricingUtils {
         );
 
         if (!hasVirtualInventory) {
-            return priceImpactUsd;
+            return (priceImpactUsd, balanceWasImproved);
         }
 
         uint256 virtualPoolAmountForTokenA;
@@ -160,17 +160,17 @@ library SwapPricingUtils {
             virtualPoolAmountForTokenB
         );
 
-        int256 priceImpactUsdForVirtualInventory = _getPriceImpactUsd(params.dataStore, params.market, poolParamsForVirtualInventory);
+        (int256 priceImpactUsdForVirtualInventory, bool balanceWasImprovedForVirtualInventory) = _getPriceImpactUsd(params.dataStore, params.market, poolParamsForVirtualInventory);
 
-        return priceImpactUsdForVirtualInventory < priceImpactUsd ? priceImpactUsdForVirtualInventory : priceImpactUsd;
+        return priceImpactUsdForVirtualInventory < priceImpactUsd ? (priceImpactUsdForVirtualInventory, balanceWasImprovedForVirtualInventory) : (priceImpactUsd, balanceWasImproved);
     }
 
-    // @dev get the price impact in USD
+    // @dev get the price impact in USD and whether the balance was improved
     // @param dataStore DataStore
     // @param market the trading market
     // @param poolParams PoolParams
-    // @return the price impact in USD
-    function _getPriceImpactUsd(DataStore dataStore, Market.Props memory market, PoolParams memory poolParams) internal view returns (int256) {
+    // @return the price impact in USD and the balanceWasImproved boolean
+    function _getPriceImpactUsd(DataStore dataStore, Market.Props memory market, PoolParams memory poolParams) internal view returns (int256, bool) {
         uint256 initialDiffUsd = Calc.diff(poolParams.poolUsdForTokenA, poolParams.poolUsdForTokenB);
         uint256 nextDiffUsd = Calc.diff(poolParams.nextPoolUsdForTokenA, poolParams.nextPoolUsdForTokenB);
 
@@ -181,25 +181,31 @@ library SwapPricingUtils {
         bool isSameSideRebalance = (poolParams.poolUsdForTokenA <= poolParams.poolUsdForTokenB) == (poolParams.nextPoolUsdForTokenA <= poolParams.nextPoolUsdForTokenB);
         uint256 impactExponentFactor = dataStore.getUint(Keys.swapImpactExponentFactorKey(market.marketToken));
 
+        bool balanceWasImproved = nextDiffUsd < initialDiffUsd;
         if (isSameSideRebalance) {
-            bool hasPositiveImpact = nextDiffUsd < initialDiffUsd;
-            uint256 impactFactor = MarketUtils.getAdjustedSwapImpactFactor(dataStore, market.marketToken, hasPositiveImpact);
+            uint256 impactFactor = MarketUtils.getAdjustedSwapImpactFactor(dataStore, market.marketToken, balanceWasImproved);
 
-            return PricingUtils.getPriceImpactUsdForSameSideRebalance(
-                initialDiffUsd,
-                nextDiffUsd,
-                impactFactor,
-                impactExponentFactor
+            return (
+                PricingUtils.getPriceImpactUsdForSameSideRebalance(
+                    initialDiffUsd,
+                    nextDiffUsd,
+                    impactFactor,
+                    impactExponentFactor
+                ),
+                balanceWasImproved
             );
         } else {
             (uint256 positiveImpactFactor, uint256 negativeImpactFactor) = MarketUtils.getAdjustedSwapImpactFactors(dataStore, market.marketToken);
 
-            return PricingUtils.getPriceImpactUsdForCrossoverRebalance(
-                initialDiffUsd,
-                nextDiffUsd,
-                positiveImpactFactor,
-                negativeImpactFactor,
-                impactExponentFactor
+            return (
+                PricingUtils.getPriceImpactUsdForCrossoverRebalance(
+                    initialDiffUsd,
+                    nextDiffUsd,
+                    positiveImpactFactor,
+                    negativeImpactFactor,
+                    impactExponentFactor
+                ),
+                balanceWasImproved
             );
         }
     }
@@ -257,7 +263,7 @@ library SwapPricingUtils {
         DataStore dataStore,
         address marketToken,
         uint256 amount,
-        bool forPositiveImpact,
+        bool balanceWasImproved,
         address uiFeeReceiver,
         ISwapPricingUtils.SwapPricingType swapPricingType
     ) internal view returns (SwapFees memory) {
@@ -271,15 +277,15 @@ library SwapPricingUtils {
         uint256 feeFactor;
 
         if (swapPricingType == ISwapPricingUtils.SwapPricingType.Swap) {
-            feeFactor = dataStore.getUint(Keys.swapFeeFactorKey(marketToken, forPositiveImpact));
+            feeFactor = dataStore.getUint(Keys.swapFeeFactorKey(marketToken, balanceWasImproved));
         } else if (swapPricingType == ISwapPricingUtils.SwapPricingType.Shift) {
             // empty branch as feeFactor is already zero
         } else if (swapPricingType == ISwapPricingUtils.SwapPricingType.Atomic) {
             feeFactor = dataStore.getUint(Keys.atomicSwapFeeFactorKey(marketToken));
         } else if (swapPricingType == ISwapPricingUtils.SwapPricingType.Deposit) {
-            feeFactor = dataStore.getUint(Keys.depositFeeFactorKey(marketToken, forPositiveImpact));
+            feeFactor = dataStore.getUint(Keys.depositFeeFactorKey(marketToken, balanceWasImproved));
         } else if (swapPricingType == ISwapPricingUtils.SwapPricingType.Withdrawal) {
-            feeFactor = dataStore.getUint(Keys.withdrawalFeeFactorKey(marketToken, forPositiveImpact));
+            feeFactor = dataStore.getUint(Keys.withdrawalFeeFactorKey(marketToken, balanceWasImproved));
         }
 
         uint256 swapFeeReceiverFactor = dataStore.getUint(Keys.SWAP_FEE_RECEIVER_FACTOR);

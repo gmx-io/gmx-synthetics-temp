@@ -279,7 +279,7 @@ describe("Exchange.SwapOrder", () => {
           const swapInfoEvent = getEventData(logs, "SwapInfo");
           expect(swapInfoEvent.priceImpactUsd).eq("91079461211532650093343730000000"); // 91.0794612115 USD
           expect(swapInfoEvent.priceImpactAmount).eq("18215892242306530"); // 0.01821589224230653 ETH, 91.0794612115 USD
-          expect(swapInfoEvent.amountOut).eq("1017715892242306530"); // 1.01771589224230653 ETH, 5088.57946121 USD
+          expect(swapInfoEvent.amountOut).eq("1017715892242306530"); // 1.017715892242306530 ETH, 5088.57946121 USD
         },
       },
     });

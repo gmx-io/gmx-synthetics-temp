@@ -45,6 +45,7 @@ async function main() {
         minMarketTokens,
         executionFee,
         callbackGasLimit: BigNumber.from(0),
+        dataList: [],
       },
     ]),
   ];
