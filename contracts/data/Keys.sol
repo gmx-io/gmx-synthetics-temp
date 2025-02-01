@@ -467,6 +467,48 @@ library Keys {
     // @dev key for the buyback withdrawable fees
     bytes32 public constant WITHDRAWABLE_BUYBACK_TOKEN_AMOUNT = keccak256(abi.encode("WITHDRAWABLE_BUYBACK_TOKEN_AMOUNT"));
 
+    // @dev key for MultichainReader read channel
+    bytes32 public constant MULTICHAIN_READ_CHANNEL = keccak256(abi.encode("MULTICHAIN_READ_CHANNEL"));
+    // @dev key for MultichainReader read channel to peer mapping
+    bytes32 public constant MULTICHAIN_PEERS = keccak256(abi.encode("MULTICHAIN_PEERS"));
+    // @dev key for MultichainReader number of confirmations to wait for finality
+    bytes32 public constant MULTICHAIN_CONFIRMATIONS = keccak256(abi.encode("MULTICHAIN_CONFIRMATIONS"));
+    // @dev key for MultichainReader guid to originator mapping
+    bytes32 public constant MULTICHAIN_GUID_TO_ORIGINATOR = keccak256(abi.encode("MULTICHAIN_GUID_TO_ORIGINATOR"));
+    // @dev key for MultichainReader authorized orginators
+    bytes32 public constant MULTICHAIN_AUTHORIZED_ORIGINATORS = keccak256(abi.encode("MULTICHAIN_AUTHORIZED_ORIGINATORS"));
+
+    // @dev key for FeeDistributor day of the week (0 = Sunday, 6 = Saturday)
+    bytes32 public constant FEE_DISTRIBUTOR_DISTRIBUTION_DAY = keccak256(abi.encode("FEE_DISTRIBUTOR_DISTRIBUTION_DAY"));
+    // @dev key for FeeDistributor timestamp that the last distribution was completed
+    bytes32 public constant FEE_DISTRIBUTOR_DISTRIBUTION_TIMESTAMP = keccak256(abi.encode("FEE_DISTRIBUTOR_DISTRIBUTION_TIMESTAMP"));
+    // @dev key for contract and keeper addresses used in FeeDistributor
+    bytes32 public constant FEE_DISTRIBUTOR_DISTRIBUTION_INITIATED = keccak256(abi.encode("FEE_DISTRIBUTOR_DISTRIBUTION_INITIATED"));
+    // @dev key for FeeDistributor referral rewards for a given timestamp
+    bytes32 public constant FEE_DISTRIBUTOR_REFERRAL_REWARDS_AMOUNT = keccak256(abi.encode("FEE_DISTRIBUTOR_REFERRAL_REWARDS_AMOUNT"));
+    // @dev key for FeeDistributor max read response delay in seconds from MultichainReader
+    bytes32 public constant FEE_DISTRIBUTOR_MAX_READ_RESPONSE_DELAY = keccak256(abi.encode("FEE_DISTRIBUTOR_MAX_READ_RESPONSE_DELAY"));
+    // @dev key for FeeDistributor gas limit used for MultichainReader read request
+    bytes32 public constant FEE_DISTRIBUTOR_GAS_LIMIT = keccak256(abi.encode("FEE_DISTRIBUTOR_GAS_LIMIT"));
+    // @dev key for FeeDistributor number of chains with GMX deployments
+    bytes32 public constant FEE_DISTRIBUTOR_NUMBER_OF_CHAINS = keccak256(abi.encode("FEE_DISTRIBUTOR_NUMBER_OF_CHAINS"));
+    // @dev key for FeeDistributor chain ID
+    bytes32 public constant FEE_DISTRIBUTOR_CHAIN_ID = keccak256(abi.encode("FEE_DISTRIBUTOR_CHAIN_ID"));
+    // @dev key for FeeDistributor fee amount
+    bytes32 public constant FEE_DISTRIBUTOR_FEE_AMOUNT = keccak256(abi.encode("FEE_DISTRIBUTOR_FEE_AMOUNT"));
+    // @dev key for FeeDistributor staked gmx
+    bytes32 public constant FEE_DISTRIBUTOR_STAKED_GMX = keccak256(abi.encode("FEE_DISTRIBUTOR_STAKED_GMX"));
+    // @dev key for FeeDistributor read response timestamp
+    bytes32 public constant FEE_DISTRIBUTOR_READ_RESPONSE_TIMESTAMP = keccak256(abi.encode("FEE_DISTRIBUTOR_READ_RESPONSE_TIMESTAMP"));
+    // @dev key for FeeDistributor LayerZero version of chainId
+    bytes32 public constant FEE_DISTRIBUTOR_LAYERZERO_CHAIN_ID = keccak256(abi.encode("FEE_DISTRIBUTOR_LAYERZERO_CHAIN_ID"));
+    // @dev key for contract and keeper addresses used in FeeDistributor
+    bytes32 public constant FEE_DISTRIBUTOR_STORED_ADDRESSES = keccak256(abi.encode("FEE_DISTRIBUTOR_STORED_ADDRESSES"));
+    // @dev key for identifying if FeeDistributor current chain has a fee deficit
+    bytes32 public constant FEE_DISTRIBUTOR_FEE_DEFICIT = keccak256(abi.encode("FEE_DISTRIBUTOR_FEE_DEFICIT"));
+    // @dev key for FeeDistributor esGMX rewards available for referral rewards distribution
+    bytes32 public constant FEE_DISTRIBUTOR_ESGMX_REWARDS = keccak256(abi.encode("FEE_DISTRIBUTOR_ESGMX_REWARDS"));
+
     // @dev constant for user initiated cancel reason
     string public constant USER_INITIATED_CANCEL = "USER_INITIATED_CANCEL";
 
@@ -2075,5 +2117,76 @@ library Keys {
             BUYBACK_MAX_PRICE_IMPACT_FACTOR,
             token
         ));
+    }
+
+    // @dev key for the multichain peers mapping (peer address stored as bytes32)
+    // @param readChannel the readChannel for which to retrieve the respective peer
+    // @return key for multichain peers
+    function multichainPeersKey(uint32 readChannel) internal pure returns (bytes32) {
+        return keccak256(abi.encode(MULTICHAIN_PEERS, readChannel));
+    }
+
+    // @dev key for the multichain number of confirmations
+    // @param chainId the chainId for which to retrieve the number of confirmations
+    // @return key for multichain confirmations
+    function multichainConfirmationsKey(uint32 chainId) internal pure returns (bytes32) {
+        return keccak256(abi.encode(MULTICHAIN_PEERS, chainId));
+    }
+
+    // @dev key for the multichain guid to originator mapping
+    // @param guid the guid for which to retrieve the originator address
+    // @return key for multichain guid to originator
+    function multichainGuidToOriginatorKey(bytes32 guid) internal pure returns (bytes32) {
+        return keccak256(abi.encode(MULTICHAIN_GUID_TO_ORIGINATOR, guid));
+    }
+
+    // @dev key for the multichain authorized originators
+    // @param originator the originator address to validate if authorized
+    // @return key for multichain authorized originator
+    function multichainAuthorizedOriginatorsKey(address originator) internal pure returns (bytes32) {
+        return keccak256(abi.encode(MULTICHAIN_AUTHORIZED_ORIGINATORS, originator));
+    }
+
+    // @dev key for the FeeDistributor referral rewards amount
+    // @param timestamp the timestamp for which to retrieve the referral rewards
+    // @return key for FeeDistributor referral rewards amount
+    function feeDistributorReferralRewardsAmountKey(uint256 timestamp) internal pure returns (bytes32) {
+        return keccak256(abi.encode(FEE_DISTRIBUTOR_REFERRAL_REWARDS_AMOUNT, timestamp));
+    }
+
+    // @dev key for the FeeDistributor chain ID
+    // @param chain the number of the chain for which to retrieve chain ID
+    // @return key for FeeDistributor chain ID
+    function feeDistributorChainIdKey(uint256 chain) internal pure returns (bytes32) {
+        return keccak256(abi.encode(FEE_DISTRIBUTOR_CHAIN_ID, chain));
+    }
+
+    // @dev key for the FeeDistributor fee amount
+    // @param chainId the chainId for which to retrieve fee amount
+    // @return key for FeeDistributor fee amount
+    function feeDistributorFeeAmountKey(uint256 chainId) internal pure returns (bytes32) {
+        return keccak256(abi.encode(FEE_DISTRIBUTOR_FEE_AMOUNT, chainId));
+    }
+
+    // @dev key for the FeeDistributor staked gmx
+    // @param chainId the chainId for which to retrieve total staked
+    // @return key for FeeDistributor staked gmx
+    function feeDistributorStakedGmxKey(uint256 chainId) internal pure returns (bytes32) {
+        return keccak256(abi.encode(FEE_DISTRIBUTOR_STAKED_GMX, chainId));
+    }
+
+    // @dev key for FeeDistributor LayerZero version of chainId
+    // @param chainId the chainId for the chain
+    // @return key for FeeDistributor LayerZero chainId
+    function feeDistributorLayerZeroChainIdKey(uint256 chainId) internal pure returns (bytes32) {
+        return keccak256(abi.encode(FEE_DISTRIBUTOR_LAYERZERO_CHAIN_ID, chainId));
+    }
+
+    // @dev key for contract and keeper addresses used in FeeDistributor 
+    // @param chainId the chainId for the chain
+    // @param addressName bytes32 representing the address to be retrieved
+    // @return key for contract and keeper addresses used in FeeDistributor
+    function feeDistributorStoredAddressesKey(uint256 chainId, bytes32 addressName) internal pure returns (bytes32) {
+        return keccak256(abi.encode(FEE_DISTRIBUTOR_STORED_ADDRESSES, chainId, addressName));
     }
 }

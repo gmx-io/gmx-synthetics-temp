@@ -4,25 +4,25 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
+import {MessagingFee, MessagingReceipt} from "@layerzerolabs/lz-evm-protocol-v2/contracts/interfaces/ILayerZeroEndpointV2.sol";
+
+import {MultichainReaderUtils} from "../external/MultichainReaderUtils.sol";
+
 import "../v1/IVaultV1.sol";
 import "../v1/IRouterV1.sol";
 
 import "../data/DataStore.sol";
 import "../role/RoleModule.sol";
-import "../fee/FeeUtils.sol";
-import "../fee/FeeSwapUtils.sol";
-import "../fee/FeeBatchStoreUtils.sol";
-import "../market/Market.sol";
-import "../nonce/NonceUtils.sol";
+import "../event/EventEmitter.sol";
+import "../external/MultichainReader.sol";
 import "../router/IExchangeRouter.sol";
 
-// @title FeeDistributor
 contract FeeDistributor is ReentrancyGuard, RoleModule {
-    using Market for Market.Props;
-    using Order for Order.Props;
+    using EventUtils for EventUtils.BoolItems;
 
     DataStore public immutable dataStore;
     EventEmitter public immutable eventEmitter;
+    MultichainReader public immutable multichainReader;
 
     IVaultV1 public immutable vaultV1;
     IRouterV1 public immutable routerV1;
@@ -30,173 +30,228 @@ contract FeeDistributor is ReentrancyGuard, RoleModule {
     address public immutable routerV2;
     IExchangeRouter public immutable exchangeRouterV2;
 
-    address public immutable bridgingToken;
-
     constructor(
         RoleStore _roleStore,
         DataStore _dataStore,
         EventEmitter _eventEmitter,
+        MultichainReader _multichainReader,
         IVaultV1 _vaultV1,
         IRouterV1 _routerV1,
         address _routerV2,
-        IExchangeRouter _exchangeRouterV2,
-        address _bridgingToken
+        IExchangeRouter _exchangeRouterV2
     ) RoleModule(_roleStore) {
         dataStore = _dataStore;
         eventEmitter = _eventEmitter;
+        multichainReader = _multichainReader;
 
         vaultV1 = _vaultV1;
         routerV1 = _routerV1;
 
         routerV2 = _routerV2;
         exchangeRouterV2 = _exchangeRouterV2;
-
-        bridgingToken = _bridgingToken;
     }
 
-    // the startIndexV2 and endIndexV2 is passed into the function instead of iterating
-    // all markets in the market factory as there may be a large number of v2 markets
-    // which could cause the function to exceed the max block gas limit
-    // for v1 it is assumed that the total number of tokens to claim fees for is manageable
-    // so the tokens are directly iterated for v1
-    function claimFees(
-        uint256 startIndexV2,
-        uint256 endIndexV2
-    ) external nonReentrant onlyFeeDistributionKeeper {
-        FeeBatch.Props memory feeBatch;
+    function initiateDistribute() external nonReentrant onlyFeeDistributionKeeper {
+        _validateDistributionNotCompleted();
+        uint256 chains = dataStore.getUint(Keys.FEE_DISTRIBUTOR_NUMBER_OF_CHAINS);
+        MultichainReaderUtils.ReadRequestInputs[]
+            memory readRequestsInputs = new MultichainReaderUtils.ReadRequestInputs[]((chains - 1) * 3);
+        bool skippedCurrentChain;
+        for (uint256 i; i < chains; i++) {
+            uint256 chainId = dataStore.getUint(Keys.feeDistributorChainIdKey(i + 1));
+            address gmx = dataStore.getAddress(
+                Keys.feeDistributorStoredAddressesKey(chainId, keccak256(abi.encode("GMX")))
+            );
+            address feeKeeper = dataStore.getAddress(
+                Keys.feeDistributorStoredAddressesKey(chainId, keccak256(abi.encode("FEE_KEEPER")))
+            );
+            address feeGmxTracker = dataStore.getAddress(
+                Keys.feeDistributorStoredAddressesKey(chainId, keccak256(abi.encode("FEE_GMX_TRACKER")))
+            );
+            if (chainId == block.chainid) {
+                uint256 feeAmount = dataStore.getUint(Keys.withdrawableBuybackTokenAmountKey(gmx)) +
+                    IERC20(gmx).balanceOf(feeKeeper);
+                uint256 stakedGmx = IERC20(feeGmxTracker).totalSupply();
+                dataStore.setUint(Keys.feeDistributorFeeAmountKey(chainId), feeAmount);
+                dataStore.setUint(Keys.feeDistributorStakedGmxKey(chainId), stakedGmx);
+                skippedCurrentChain = true;
+                continue;
+            }
 
-        uint256 countV1 = vaultV1.allWhitelistedTokensLength();
+            uint32 layerZeroChainId = uint32(dataStore.getUint(Keys.feeDistributorLayerZeroChainIdKey(chainId)));
+            uint256 readRequest = skippedCurrentChain ? (i - 1) * 3 : i * 3;
+            readRequestsInputs[readRequest].chainId = layerZeroChainId;
+            readRequestsInputs[readRequest].target = dataStore.getAddress(
+                Keys.feeDistributorStoredAddressesKey(chainId, keccak256(abi.encode("DATASTORE")))
+            );
+            readRequestsInputs[readRequest].callData = abi.encodeWithSelector(
+                DataStore.getUint.selector,
+                Keys.withdrawableBuybackTokenAmountKey(gmx)
+            );
+            readRequest++;
 
-        address[] memory marketKeysV2 = MarketStoreUtils.getMarketKeys(dataStore, startIndexV2, endIndexV2);
-        uint256 countV2 = marketKeysV2.length;
+            readRequestsInputs[readRequest].chainId = layerZeroChainId;
+            readRequestsInputs[readRequest].target = gmx;
+            readRequestsInputs[readRequest].callData = abi.encodeWithSelector(IERC20.balanceOf.selector, feeKeeper);
+            readRequest++;
 
-        uint256 totalCount = countV1 + countV2 * 2;
-        feeBatch.feeTokens = new address[](totalCount);
-        feeBatch.feeAmounts = new uint256[](totalCount);
-        feeBatch.remainingAmounts = new uint256[](totalCount);
-
-        feeBatch = _claimFeesV1(feeBatch, countV1);
-        feeBatch = _claimFeesV2(feeBatch, marketKeysV2, countV1, countV2);
-        feeBatch.createdAt = Chain.currentTimestamp();
-
-        bytes32 key = NonceUtils.getNextKey(dataStore);
-        FeeBatchStoreUtils.set(dataStore, key, feeBatch);
-    }
-
-    function swapFeesUsingV1(
-        bytes32 feeBatchKey,
-        uint256 tokenIndex,
-        address[] memory path,
-        uint256 swapAmount,
-        uint256 minOut
-    ) external {
-        FeeSwapUtils.swapFeesUsingV1(
-            dataStore,
-            routerV1,
-            bridgingToken,
-            feeBatchKey,
-            tokenIndex,
-            path,
-            swapAmount,
-            minOut
-        );
-    }
-
-    function swapFeesUsingV2(
-        bytes32 feeBatchKey,
-        uint256 tokenIndex,
-        address market,
-        address[] memory swapPath,
-        uint256 swapAmount,
-        uint256 executionFee,
-        uint256 minOut
-    ) external payable {
-        FeeSwapUtils.swapFeesUsingV2(
-            dataStore,
-            routerV2,
-            exchangeRouterV2,
-            bridgingToken,
-            feeBatchKey,
-            tokenIndex,
-            market,
-            swapPath,
-            swapAmount,
-            executionFee,
-            minOut
-        );
-    }
-
-    // handle order cancellation callbacks
-    function afterOrderCancellation(
-        bytes32 orderKey,
-        Order.Props memory order,
-        EventUtils.EventLogData memory /* eventData */
-    ) external {
-        // validate that the caller has a controller role, the only controller that
-        // should call this function is the OrderHandler
-        _validateRole(Role.CONTROLLER, "CONTROLLER");
-
-        bytes32 feeBatchKey = dataStore.getBytes32(Keys.feeDistributorSwapFeeBatchKey(orderKey));
-        uint256 tokenIndex = dataStore.getUint(Keys.feeDistributorSwapTokenIndexKey(orderKey));
-
-        FeeBatch.Props memory feeBatch = FeeBatchStoreUtils.get(dataStore, feeBatchKey);
-        feeBatch.remainingAmounts[tokenIndex] += order.initialCollateralDeltaAmount();
-        FeeBatchStoreUtils.set(dataStore, feeBatchKey, feeBatch);
-    }
-
-    function _claimFeesV1(FeeBatch.Props memory feeBatch, uint256 count) internal returns (FeeBatch.Props memory) {
-        for (uint256 i; i < count; i++) {
-            // it is possible for the token to be address(0) the withdrawFees
-            // function should just return 0 in that case
-            address token = vaultV1.allWhitelistedTokens(i);
-            uint256 amount = vaultV1.withdrawFees(token, address(this));
-
-            feeBatch.feeTokens[i] = token;
-            feeBatch.feeAmounts[i] = amount;
-            feeBatch.remainingAmounts[i] = amount;
+            readRequestsInputs[readRequest].chainId = layerZeroChainId;
+            readRequestsInputs[readRequest].target = feeGmxTracker;
+            readRequestsInputs[readRequest].callData = abi.encodeWithSelector(IERC20.totalSupply.selector);
         }
 
-        return feeBatch;
+        MultichainReaderUtils.ExtraOptionsInputs memory extraOptionsInputs;
+        extraOptionsInputs.gasLimit = uint128(dataStore.getUint(Keys.FEE_DISTRIBUTOR_GAS_LIMIT));
+        extraOptionsInputs.returnDataSize = ((uint32(chains) - 1) * 96) + 8;
+
+        MessagingFee memory messagingFee = multichainReader.quoteReadFee(readRequestsInputs, extraOptionsInputs);
+        multichainReader.sendReadRequests{value: messagingFee.nativeFee}(readRequestsInputs, extraOptionsInputs);
+
+        dataStore.setBool(Keys.FEE_DISTRIBUTOR_DISTRIBUTION_INITIATED, true);
     }
 
-    function _claimFeesV2(
-        FeeBatch.Props memory feeBatch,
-        address[] memory marketKeys,
-        uint256 countV1,
-        uint256 countV2
-    ) internal returns (FeeBatch.Props memory) {
-        for (uint256 i; i < countV2; i++) {
-            address marketKey = marketKeys[i];
-            Market.Props memory market = MarketStoreUtils.get(dataStore, marketKey);
+    function processLzReceive(
+        bytes32 /*guid*/,
+        MultichainReaderUtils.ReceivedData calldata receivedDataInput
+    ) external {
+        _validateReadResponseTimestamp(receivedDataInput.timestamp);
+        dataStore.setUint(Keys.FEE_DISTRIBUTOR_READ_RESPONSE_TIMESTAMP, receivedDataInput.timestamp);
 
-            uint256 longTokenFeeAmount = FeeUtils.claimFees(
-                dataStore,
-                eventEmitter,
-                market.marketToken,
-                market.longToken,
-                address(this)
+        uint256 chains = dataStore.getUint(Keys.FEE_DISTRIBUTOR_NUMBER_OF_CHAINS);
+        for (uint256 i; i < chains; i++) {
+            uint256 chainId = dataStore.getUint(Keys.feeDistributorChainIdKey(i + 1));
+            bool skippedCurrentChain;
+            if (chainId == block.chainid) {
+                skippedCurrentChain = true;
+                continue;
+            }
+
+            uint256 offset = skippedCurrentChain ? (i - 1) * 96 : i * 96;
+            (uint256 feeAmount1, uint256 feeAmount2, uint256 stakedGmx) = abi.decode(
+                receivedDataInput.readData[offset:offset + 96],
+                (uint256, uint256, uint256)
             );
-
-            uint256 shortTokenFeeAmount = FeeUtils.claimFees(
-                dataStore,
-                eventEmitter,
-                market.marketToken,
-                market.shortToken,
-                address(this)
-            );
-
-            uint256 baseIndex = countV1 + i * 2;
-
-            feeBatch.feeTokens[baseIndex] = market.longToken;
-            feeBatch.feeAmounts[baseIndex] = longTokenFeeAmount;
-            feeBatch.remainingAmounts[baseIndex] = longTokenFeeAmount;
-
-            feeBatch.feeTokens[baseIndex + 1] = market.shortToken;
-            feeBatch.feeAmounts[baseIndex + 1] = shortTokenFeeAmount;
-            feeBatch.remainingAmounts[baseIndex + 1] = shortTokenFeeAmount;
+            dataStore.setUint(Keys.feeDistributorFeeAmountKey(chainId), feeAmount1 + feeAmount2);
+            dataStore.setUint(Keys.feeDistributorStakedGmxKey(chainId), stakedGmx);
         }
 
-        return feeBatch;
+        EventUtils.EventLogData memory eventData;
+        eventData.boolItems.initItems(1);
+        eventData.boolItems.setItem(0, "distributeReferralRewards", false);
+
+        eventEmitter.emitEventLog("TriggerReferralKeeper", eventData);
     }
 
+    function distribute() external nonReentrant onlyFeeDistributionKeeper {
+        if (!dataStore.getBool(Keys.FEE_DISTRIBUTOR_DISTRIBUTION_INITIATED)) {
+            revert Errors.DistributionNotInitiated();
+        }
+        _validateReadResponseTimestamp(dataStore.getUint(Keys.FEE_DISTRIBUTOR_READ_RESPONSE_TIMESTAMP));
+        _validateDistributionNotCompleted();
+
+        uint256 chains = dataStore.getUint(Keys.FEE_DISTRIBUTOR_NUMBER_OF_CHAINS);
+        uint256[] memory feeAmount = new uint256[](chains);
+        uint256 totalFeeAmount;
+        uint256[] memory stakedGmx = new uint256[](chains);
+        uint256 totalStakedGmx;
+        uint256 currentChain;
+        for (uint256 i; i < chains; i++) {
+            uint256 chainId = dataStore.getUint(Keys.feeDistributorChainIdKey(i + 1));
+            if (chainId == block.chainid) {
+                currentChain = i;
+            }
+            feeAmount[i] = dataStore.getUint(Keys.feeDistributorFeeAmountKey(chainId));
+            totalFeeAmount = totalFeeAmount + feeAmount[i];
+            stakedGmx[i] = dataStore.getUint(Keys.feeDistributorStakedGmxKey(chainId));
+            totalStakedGmx = totalStakedGmx + stakedGmx[i];
+        }
+
+        // Need to add potential require checks on bridging calculation math
+        // Need to account for rounding errors and the cost of the bridging as the numbers won't be exact
+        uint256 requiredFeeAmount = (totalFeeAmount * stakedGmx[currentChain]) / totalStakedGmx;
+        if (requiredFeeAmount > feeAmount[currentChain]) {
+            dataStore.setBool(Keys.FEE_DISTRIBUTOR_FEE_DEFICIT, true);
+            return;
+        }
+        if (!dataStore.getBool(Keys.FEE_DISTRIBUTOR_FEE_DEFICIT)) {
+            uint256[] memory target = new uint256[](chains);
+            for (uint256 i; i < chains; i++) {
+                if (totalStakedGmx == 0) {
+                    target[i] = 0;
+                } else {
+                    target[i] = (totalFeeAmount * stakedGmx[i]) / totalStakedGmx;
+                }
+            }
+
+            int256[] memory difference = new int256[](chains);
+            for (uint256 i; i < chains; i++) {
+                difference[i] = int256(feeAmount[i]) - int256(target[i]);
+            }
+
+            uint256[][] memory bridging = new uint256[][](chains);
+            for (uint256 i; i < chains; i++) {
+                bridging[i] = new uint256[](chains);
+            }
+
+            uint256 deficit;
+            for (uint256 surplus; surplus < chains; surplus++) {
+                if (difference[surplus] <= 0) continue;
+
+                while (deficit < chains && difference[deficit] >= 0) {
+                    deficit++;
+                }
+                if (deficit == chains) break;
+
+                while (difference[surplus] > 0 && deficit < chains) {
+                    int256 needed = -difference[deficit];
+                    if (needed > difference[surplus]) {
+                        bridging[surplus][deficit] += uint256(difference[surplus]);
+                        difference[deficit] += difference[surplus];
+                        difference[surplus] = 0;
+                    } else {
+                        bridging[surplus][deficit] += uint256(needed);
+                        difference[surplus] -= needed;
+                        difference[deficit] = 0;
+                        deficit++;
+                        while (deficit < chains && difference[deficit] >= 0) {
+                            deficit++;
+                        }
+                    }
+                }
+            }
+
+            uint256 amountToBridgeOut;
+            for (uint256 i; i < chains; i++) {
+                uint256 sendAmount = bridging[currentChain][i];
+                if (sendAmount > 0) {
+                    // bridging transaction to be added
+                }
+                amountToBridgeOut += sendAmount;
+            }
+        }
+
+        // after distribution completed
+        if (dataStore.getBool(Keys.FEE_DISTRIBUTOR_FEE_DEFICIT)) {
+            dataStore.setBool(Keys.FEE_DISTRIBUTOR_FEE_DEFICIT, false);
+        }
+        dataStore.setUint(Keys.FEE_DISTRIBUTOR_DISTRIBUTION_TIMESTAMP, block.timestamp);
+        dataStore.setBool(Keys.FEE_DISTRIBUTOR_DISTRIBUTION_INITIATED, false);
+    }
+
+    function _validateDistributionNotCompleted() internal view {
+        uint256 dayOfWeek = ((block.timestamp / 86400) + 4) % 7;
+        uint256 daysSinceStartOfWeek = (dayOfWeek + 7 - dataStore.getUint(Keys.FEE_DISTRIBUTOR_DISTRIBUTION_DAY)) % 7;
+        uint256 midnightToday = (block.timestamp - (block.timestamp % 86400));
+        uint256 startOfWeek = midnightToday - (daysSinceStartOfWeek * 86400);
+        uint256 lastDistributionTime = dataStore.getUint(Keys.FEE_DISTRIBUTOR_DISTRIBUTION_TIMESTAMP);
+        if (lastDistributionTime > startOfWeek) {
+            revert Errors.DistributionThisWeekAlreadyCompleted(lastDistributionTime, startOfWeek);
+        }
+    }
+
+    function _validateReadResponseTimestamp(uint256 readResponseTimestamp) internal view {
+        if (block.timestamp - readResponseTimestamp > dataStore.getUint(Keys.FEE_DISTRIBUTOR_MAX_READ_RESPONSE_DELAY)) {
+            revert Errors.OutdatedReadResponse(readResponseTimestamp);
+        }
+    }
 }
