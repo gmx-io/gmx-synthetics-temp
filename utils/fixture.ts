@@ -95,6 +95,8 @@ export async function deployFixture() {
   const adlHandler = await hre.ethers.getContract("AdlHandler");
   const router = await hre.ethers.getContract("Router");
   const exchangeRouter = await hre.ethers.getContract("ExchangeRouter");
+  const gelatoRelayRouter = await hre.ethers.getContract("GelatoRelayRouter");
+  const subaccountGelatoRelayRouter = await hre.ethers.getContract("SubaccountGelatoRelayRouter");
   const subaccountRouter = await hre.ethers.getContract("SubaccountRouter");
   const oracle = await hre.ethers.getContract("Oracle");
   const gmOracleProvider = await hre.ethers.getContract("GmOracleProvider");
@@ -116,7 +118,7 @@ export async function deployFixture() {
   const feeHandler = await hre.ethers.getContract("FeeHandler");
   const mockVaultV1 = await hre.ethers.getContract("MockVaultV1");
   const multichainVault = await hre.ethers.getContract("MultichainVault");
-  const multichainHandler = await hre.ethers.getContract("MultichainHandler");
+  const multichainVaultHandler = await hre.ethers.getContract("MultichainVaultHandler");
   const layerZeroProvider = await hre.ethers.getContract("LayerZeroProvider");
   const mockStargatePool = await hre.ethers.getContract("MockStargatePool");
 
@@ -275,6 +277,8 @@ export async function deployFixture() {
       adlHandler,
       router,
       exchangeRouter,
+      gelatoRelayRouter,
+      subaccountGelatoRelayRouter,
       subaccountRouter,
       oracle,
       gmOracleProvider,
@@ -324,7 +328,7 @@ export async function deployFixture() {
       glvReader,
       mockVaultV1,
       multichainVault,
-      multichainHandler,
+      multichainVaultHandler,
       layerZeroProvider,
       mockStargatePool,
     },

@@ -2,14 +2,14 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 
 // @title MintableToken
 // @dev Mock mintable token for testing and testnets
-contract MintableToken is ERC20 {
+contract MintableToken is ERC20Permit {
     uint8 private _decimals;
 
-    constructor(string memory name_, string memory symbol_, uint8 decimals_) ERC20(name_, symbol_) {
+    constructor(string memory name_, string memory symbol_, uint8 decimals_) ERC20(name_, symbol_) ERC20Permit(name_) {
         _decimals = decimals_;
     }
 

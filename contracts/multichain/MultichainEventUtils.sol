@@ -16,7 +16,7 @@ library MultichainEventUtils {
     function emitMultichainDeposit(
         EventEmitter eventEmitter,
         address token,
-        address virtualAccount,
+        address account,
         uint256 amount,
         uint256 sourceChainId
     ) internal {
@@ -24,35 +24,35 @@ library MultichainEventUtils {
 
         eventData.addressItems.initItems(2);
         eventData.addressItems.setItem(0, "token", token);
-        eventData.addressItems.setItem(1, "virtualAccount", virtualAccount);
+        eventData.addressItems.setItem(1, "account", account);
 
         eventData.uintItems.initItems(2);
         eventData.uintItems.setItem(0, "amount", amount);
         eventData.uintItems.setItem(1, "sourceChainId", sourceChainId);
 
-        eventEmitter.emitEventLog1("MultichainDeposit", Cast.toBytes32(virtualAccount), eventData);
+        eventEmitter.emitEventLog2("MultichainDeposit", bytes32(sourceChainId), Cast.toBytes32(account), eventData);
     }
 
     function emitMultichainMessage(
         EventEmitter eventEmitter,
-        address virtualAccount,
+        address account,
         uint256 sourceChainId
     ) internal {
         EventUtils.EventLogData memory eventData;
 
         eventData.addressItems.initItems(1);
-        eventData.addressItems.setItem(0, "virtualAccount", virtualAccount);
+        eventData.addressItems.setItem(0, "account", account);
 
         eventData.uintItems.initItems(1);
         eventData.uintItems.setItem(0, "sourceChainId", sourceChainId);
 
-        eventEmitter.emitEventLog1("MultichainMessage", Cast.toBytes32(virtualAccount), eventData);
+        eventEmitter.emitEventLog1("MultichainMessage", Cast.toBytes32(account), eventData);
     }
 
     function emitMultichainWithdrawal(
         EventEmitter eventEmitter,
         address token,
-        address virtualAccount,
+        address account,
         uint256 amount,
         uint256 sourceChainId
     ) internal {
@@ -60,12 +60,12 @@ library MultichainEventUtils {
 
         eventData.addressItems.initItems(2);
         eventData.addressItems.setItem(0, "token", token);
-        eventData.addressItems.setItem(1, "virtualAccount", virtualAccount);
+        eventData.addressItems.setItem(1, "account", account);
 
         eventData.uintItems.initItems(2);
         eventData.uintItems.setItem(0, "amount", amount);
         eventData.uintItems.setItem(1, "sourceChainId", sourceChainId);
 
-        eventEmitter.emitEventLog1("MultichainWithdrawal", Cast.toBytes32(virtualAccount), eventData);
+        eventEmitter.emitEventLog2("MultichainWithdrawal", bytes32(sourceChainId), Cast.toBytes32(account), eventData);
     }
 }

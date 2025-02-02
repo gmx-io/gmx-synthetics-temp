@@ -233,7 +233,7 @@ export const MAX_ALLOWED_SUBACCOUNT_ACTION_COUNT = hashString("MAX_ALLOWED_SUBAC
 export const SUBACCOUNT_ACTION_COUNT = hashString("SUBACCOUNT_ACTION_COUNT");
 export const SUBACCOUNT_AUTO_TOP_UP_AMOUNT = hashString("SUBACCOUNT_AUTO_TOP_UP_AMOUNT");
 export const SUBACCOUNT_ORDER_ACTION = hashString("SUBACCOUNT_ORDER_ACTION");
-
+export const SUBACCOUNT_EXPIRES_AT = hashString("SUBACCOUNT_EXPIRES_AT");
 export const GLV_SUPPORTED_MARKET_LIST = hashString("GLV_SUPPORTED_MARKET_LIST");
 export const MIN_GLV_TOKENS_FOR_FIRST_DEPOSIT = hashString("MIN_GLV_TOKENS_FOR_FIRST_DEPOSIT");
 
@@ -717,6 +717,13 @@ export function maxAllowedSubaccountActionCountKey(account: string, subaccount: 
   );
 }
 
+export function subaccountExpiresAtKey(account: string, subaccount: string, actionType: string) {
+  return hashData(
+    ["bytes32", "address", "address", "bytes32"],
+    [SUBACCOUNT_EXPIRES_AT, account, subaccount, actionType]
+  );
+}
+
 export function subaccountActionCountKey(account: string, subaccount: string, actionType: string) {
   return hashData(
     ["bytes32", "address", "address", "bytes32"],
@@ -808,6 +815,6 @@ export function withdrawableBuybackTokenAmountKey(buybackToken: string) {
   return hashData(["bytes32", "address"], [WITHDRAWABLE_BUYBACK_TOKEN_AMOUNT, buybackToken]);
 }
 
-export function sourceChainBalanceKey(virtualAccount: string, token: string) {
-  return hashData(["bytes32", "address", "address"], [SOURCE_CHAIN_BALANCE, virtualAccount, token]);
+export function sourceChainBalanceKey(sourceChainId: number, account: string, token: string) {
+  return hashData(["bytes32", "uint256", "address", "address"], [SOURCE_CHAIN_BALANCE, sourceChainId, account, token]);
 }

@@ -50,6 +50,7 @@ library DepositUtils {
         bool shouldUnwrapNativeToken;
         uint256 executionFee;
         uint256 callbackGasLimit;
+        uint256 chainId;
         bytes32[] dataList;
     }
 
@@ -117,7 +118,8 @@ library DepositUtils {
                 params.minMarketTokens,
                 Chain.currentTimestamp(), // updatedAtTime
                 params.executionFee,
-                params.callbackGasLimit
+                params.callbackGasLimit,
+                params.chainId
             ),
             Deposit.Flags(
                 params.shouldUnwrapNativeToken

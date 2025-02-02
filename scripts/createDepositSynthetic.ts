@@ -100,6 +100,7 @@ async function main() {
     initialShortToken: usdc.address,
     longTokenSwapPath: [],
     shortTokenSwapPath: [],
+    dataList: [],
   };
   console.log("exchange router %s", exchangeRouter.address);
   console.log("deposit vault %s", depositVault.address);

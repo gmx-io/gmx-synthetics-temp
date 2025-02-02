@@ -10,7 +10,7 @@ import { EventEmitter } from "../event/EventEmitter.sol";
 
 import { IMultichainProvider } from "./IMultichainProvider.sol";
 import { MultichainVault } from "./MultichainVault.sol";
-import { MultichainHandler } from "./MultichainHandler.sol";
+import { MultichainVaultHandler } from "./MultichainVaultHandler.sol";
 import { MultichainProviderUtils } from "./MultichainProviderUtils.sol";
 import { LayerZeroProviderEventUtils } from "./LayerZeroProviderEventUtils.sol";
 
@@ -19,22 +19,22 @@ import { LayerZeroProviderEventUtils } from "./LayerZeroProviderEventUtils.sol";
  * Receives tokens and messages from source chains.
  * Defines lzCompose function which:
  *  - is called by the Stargate executor after tokens are delivered to this contract
- *  - forwards the received tokens to MultichainVault and records the deposit in MultichainHandler
+ *  - forwards the received tokens to MultichainVault and records the deposit in MultichainVaultHandler
  */
 contract LayerZeroProvider is IMultichainProvider, ILayerZeroComposer {
     EventEmitter public eventEmitter;
 
     MultichainVault public multichainVault;
-    MultichainHandler public multichainHandler;
+    MultichainVaultHandler public multichainVaultHandler;
 
     /**
-     * @param _multichainVault MultichainHandler address
-     * @param _multichainHandler MultichainVault address
+     * @param _multichainVault MultichainVaultHandler address
+     * @param _multichainVaultHandler MultichainVault address
      */
-    constructor(address _eventEmitter, address _multichainVault, address _multichainHandler) {
+    constructor(address _eventEmitter, address _multichainVault, address _multichainVaultHandler) {
         eventEmitter = EventEmitter(_eventEmitter);
         multichainVault = MultichainVault(payable(_multichainVault));
-        multichainHandler = MultichainHandler(_multichainHandler);
+        multichainVaultHandler = MultichainVaultHandler(_multichainVaultHandler);
     }
 
     ///////////////////// Stargate //////////////////////
@@ -64,11 +64,12 @@ contract LayerZeroProvider is IMultichainProvider, ILayerZeroComposer {
 
         _transferToVault(token, address(multichainVault));
 
-        address virtualAccount = multichainHandler.recordDeposit(account, token, sourceChainId);
+        multichainVaultHandler.recordDeposit(account, token, sourceChainId);
 
         LayerZeroProviderEventUtils.emitComposedMessageReceived(
             eventEmitter,
-            virtualAccount,
+            sourceChainId,
+            account,
             from,
             guid,
             message,

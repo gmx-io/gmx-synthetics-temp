@@ -354,7 +354,8 @@ library GlvDepositUtils {
                 minMarketTokens: 0,
                 updatedAtTime: glvDeposit.updatedAtTime(),
                 executionFee: 0,
-                callbackGasLimit: 0
+                callbackGasLimit: 0,
+                chainId: 0
             }),
             Deposit.Flags({shouldUnwrapNativeToken: false}),
             new bytes32[](0) // dataList

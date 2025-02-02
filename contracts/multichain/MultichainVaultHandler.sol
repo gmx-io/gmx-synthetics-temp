@@ -2,6 +2,9 @@
 
 pragma solidity ^0.8.0;
 
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
 import { RoleStore } from "../role/RoleStore.sol";
 import { RoleModule } from "../role/RoleModule.sol";
 import { DataStore } from "../data/DataStore.sol";
@@ -18,9 +21,11 @@ import { MultichainUtils } from "./MultichainUtils.sol";
 import { MultichainEventUtils } from "./MultichainEventUtils.sol";
 
 /**
- * @title MultichainHandler
+ * @title MultichainVaultHandler
  */
-contract MultichainHandler is RoleModule, GlobalReentrancyGuard, OracleModule {
+contract MultichainVaultHandler is RoleModule, GlobalReentrancyGuard, OracleModule {
+    using SafeERC20 for IERC20;
+
     MultichainVault public multichainVault;
     EventEmitter public eventEmitter;
     ExchangeRouter public exchangeRouter;
@@ -39,7 +44,7 @@ contract MultichainHandler is RoleModule, GlobalReentrancyGuard, OracleModule {
     }
 
     /**
-     * Records a deposit from another chain. IMultichainProvider has MULTICHAIN_CONTROLLER role
+     * Records a deposit from another chain. IMultichainProvider has CONTROLLER role
      * @param account user address on the source chain
      * @param token address of the token being deposited
      * @param sourceChainId chain id of the source chain
@@ -48,18 +53,28 @@ contract MultichainHandler is RoleModule, GlobalReentrancyGuard, OracleModule {
         address account,
         address token,
         uint256 sourceChainId
-    ) external onlyController returns (address virtualAccount) {
+    ) external onlyController {
         // token should have been transferred to multichainVault by IMultichainProvider
         uint256 amount = multichainVault.recordTransferIn(token);
         if (amount == 0) {
             revert Errors.EmptyMultichainDepositAmount();
         }
 
-        virtualAccount = MultichainUtils.getVirtualAccount(account, sourceChainId);
+        dataStore.incrementUint(Keys.sourceChainBalanceKey(sourceChainId, account, token), amount);
 
-        dataStore.incrementUint(Keys.sourceChainBalanceKey(virtualAccount, token), amount);
+        MultichainEventUtils.emitMultichainDeposit(eventEmitter, token, account, amount, sourceChainId);
+    }
 
-        MultichainEventUtils.emitMultichainDeposit(eventEmitter, token, virtualAccount, amount, sourceChainId);
+    /**
+     * @dev transfer the specified amount of tokens from MultichainVault to receiver and decrement multichain account balance
+     * @param account the account for which the tokens are transferred and multichain balance decremented
+     * @param token the token to transfer
+     * @param receiver the account to transfer to
+     * @param amount the amount of tokens to transfer
+     */
+    function pluginTransfer(uint256 chainId, address token, address account, address receiver, uint256 amount) external onlyRouterPlugin { // TODO: confirm access control
+        dataStore.decrementUint(Keys.sourceChainBalanceKey(chainId, account, token), amount);
+        IERC20(token).safeTransferFrom(address(multichainVault), receiver, amount);
     }
 
     /**
@@ -77,12 +92,11 @@ contract MultichainHandler is RoleModule, GlobalReentrancyGuard, OracleModule {
         // execute multicall
         exchangeRouter.multicall(multicallArgs);
 
-        address virtualAccount = MultichainUtils.getVirtualAccount(account, sourceChainId);
-        MultichainEventUtils.emitMultichainMessage(eventEmitter, virtualAccount, sourceChainId);
+        MultichainEventUtils.emitMultichainMessage(eventEmitter, account, sourceChainId);
     }
 
     /**
-     * Record a withdrawal to another chain. IMultichainProvider has MULTICHAIN_CONTROLLER role
+     * Record a withdrawal to another chain. IMultichainProvider has CONTROLLER role
      * @param account user address on the source chain
      * @param token address of the token being withdrawn
      * @param amount amount of token being withdrawn
@@ -98,8 +112,7 @@ contract MultichainHandler is RoleModule, GlobalReentrancyGuard, OracleModule {
             revert Errors.EmptyMultichainWithdrawalAmount();
         }
 
-        address virtualAccount = MultichainUtils.getVirtualAccount(account, sourceChainId);
-        bytes32 balanceKey = Keys.sourceChainBalanceKey(virtualAccount, token);
+        bytes32 balanceKey = Keys.sourceChainBalanceKey(sourceChainId, account, token);
 
         uint256 balance = dataStore.getUint(balanceKey);
         if (balance < amount) {
@@ -112,6 +125,6 @@ contract MultichainHandler is RoleModule, GlobalReentrancyGuard, OracleModule {
         // transfer tokens to IMultichainProvider
         multichainVault.transferOut(token, msg.sender, amount);
 
-        MultichainEventUtils.emitMultichainWithdrawal(eventEmitter, token, virtualAccount, amount, sourceChainId);
+        MultichainEventUtils.emitMultichainWithdrawal(eventEmitter, token, account, amount, sourceChainId);
     }
 }

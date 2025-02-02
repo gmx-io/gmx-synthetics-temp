@@ -1098,6 +1098,13 @@
     "@ethersproject/properties" "^5.7.0"
     "@ethersproject/strings" "^5.7.0"
 
+"@gelatonetwork/relay-context@^4.0.0":
+  version "4.0.0"
+  resolved "https://registry.yarnpkg.com/@gelatonetwork/relay-context/-/relay-context-4.0.0.tgz#ef531fa1cb9038be384c657b64a8142d3483c271"
+  integrity sha512-tFKJECzYIwJo+Ey4ZRyjRsyYu6JBbMzVCbEFDh/wpnz8sOr8dxX59QyXrP68KvzTegM9VypLc+nHFfy7gPR8zw==
+  dependencies:
+    "@openzeppelin/contracts" "4.9.3"
+
 "@graphql-typed-document-node/core@^3.1.1":
   version "3.2.0"
   resolved "https://registry.yarnpkg.com/@graphql-typed-document-node/core/-/core-3.2.0.tgz#5f3d96ec6b2354ad6d8a28bf216a1d97b5426861"

@@ -30,6 +30,7 @@ library DepositStoreUtils {
     bytes32 public constant UPDATED_AT_TIME = keccak256(abi.encode("UPDATED_AT_TIME"));
     bytes32 public constant EXECUTION_FEE = keccak256(abi.encode("EXECUTION_FEE"));
     bytes32 public constant CALLBACK_GAS_LIMIT = keccak256(abi.encode("CALLBACK_GAS_LIMIT"));
+    bytes32 public constant CHAIN_ID = keccak256(abi.encode("CHAIN_ID"));
 
     bytes32 public constant SHOULD_UNWRAP_NATIVE_TOKEN = keccak256(abi.encode("SHOULD_UNWRAP_NATIVE_TOKEN"));
 
@@ -99,6 +100,10 @@ library DepositStoreUtils {
 
         deposit.setCallbackGasLimit(dataStore.getUint(
             keccak256(abi.encode(key, CALLBACK_GAS_LIMIT))
+        ));
+
+        deposit.setChainId(dataStore.getUint(
+            keccak256(abi.encode(key, CHAIN_ID))
         ));
 
         deposit.setShouldUnwrapNativeToken(dataStore.getBool(
@@ -198,6 +203,11 @@ library DepositStoreUtils {
             deposit.callbackGasLimit()
         );
 
+        dataStore.setUint(
+            keccak256(abi.encode(key, CHAIN_ID)),
+            deposit.chainId()
+        );
+
         dataStore.setBool(
             keccak256(abi.encode(key, SHOULD_UNWRAP_NATIVE_TOKEN)),
             deposit.shouldUnwrapNativeToken()
@@ -282,6 +292,10 @@ library DepositStoreUtils {
 
         dataStore.removeUint(
             keccak256(abi.encode(key, CALLBACK_GAS_LIMIT))
+        );
+
+        dataStore.removeUint(
+            keccak256(abi.encode(key, CHAIN_ID))
         );
 
         dataStore.removeBool(

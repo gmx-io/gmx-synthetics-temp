@@ -26,14 +26,26 @@ export async function expectBalances(
 ) {
   for (const [i, [account, tokenAndExpectedBalances]] of Object.entries(expected).entries()) {
     for (const [j, [token, expectedBalance]] of Object.entries(tokenAndExpectedBalances).entries()) {
-      const balance = await getBalanceOf(token, account);
       const label = `balance ${i}-${j} account ${account} token ${token}`;
-      if (Array.isArray(expectedBalance)) {
-        expect(balance, label).to.be.closeTo(expectedBalance[0], expectedBalance[1]);
-      } else {
-        expect(balance, label).to.be.eq(expectedBalance);
-      }
+      await expectBalance(token, account, expectedBalance, label);
     }
+  }
+}
+
+export async function expectBalance(
+  token: string,
+  account: string,
+  expectedBalance: BigNumberish | [BigNumberish, BigNumberish],
+  label?: string
+) {
+  if (!label) {
+    label = `balance account ${account} token ${token}`;
+  }
+  const balance = await getBalanceOf(token, account);
+  if (Array.isArray(expectedBalance)) {
+    expect(balance, label).to.be.closeTo(expectedBalance[0], expectedBalance[1]);
+  } else {
+    expect(balance, label).to.be.eq(expectedBalance);
   }
 }
 

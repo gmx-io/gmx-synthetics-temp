@@ -52,6 +52,15 @@ contract SubaccountRouter is BaseRouter {
         SubaccountUtils.removeSubaccount(dataStore, eventEmitter, account, subaccount);
     }
 
+    function setSubaccountExpiresAt(
+        address subaccount,
+        bytes32 actionType,
+        uint256 expiresAt
+    ) external payable nonReentrant {
+        address account = msg.sender;
+        SubaccountUtils.setSubaccountExpiresAt(dataStore, eventEmitter, account, subaccount, actionType, expiresAt);
+    }
+
     function setMaxAllowedSubaccountActionCount(
         address subaccount,
         bytes32 actionType,
@@ -187,9 +196,7 @@ contract SubaccountRouter is BaseRouter {
         FeatureUtils.validateFeature(dataStore, Keys.subaccountFeatureDisabledKey(address(this)));
 
         address subaccount = msg.sender;
-        SubaccountUtils.validateSubaccount(dataStore, account, subaccount);
-
-        SubaccountUtils.incrementSubaccountActionCount(
+        SubaccountUtils.handleSubaccountAction(
             dataStore,
             eventEmitter,
             account,

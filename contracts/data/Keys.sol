@@ -409,6 +409,7 @@ library Keys {
     bytes32 public constant AFFILIATE_REWARD = keccak256(abi.encode("AFFILIATE_REWARD"));
     // @dev key for max allowed subaccount action count
     bytes32 public constant MAX_ALLOWED_SUBACCOUNT_ACTION_COUNT = keccak256(abi.encode("MAX_ALLOWED_SUBACCOUNT_ACTION_COUNT"));
+    bytes32 public constant SUBACCOUNT_EXPIRES_AT = keccak256(abi.encode("SUBACCOUNT_EXPIRES_AT"));
     // @dev key for subaccount action count
     bytes32 public constant SUBACCOUNT_ACTION_COUNT = keccak256(abi.encode("SUBACCOUNT_ACTION_COUNT"));
     // @dev key for subaccount auto top up amount
@@ -1779,6 +1780,15 @@ library Keys {
         ));
     }
 
+    function subaccountExpiresAtKey(address account, address subaccount, bytes32 actionType) internal pure returns (bytes32) {
+        return keccak256(abi.encode(
+            SUBACCOUNT_EXPIRES_AT,
+            account,
+            subaccount,
+            actionType
+        ));
+    }
+
     function subaccountActionCountKey(address account, address subaccount, bytes32 actionType) internal pure returns (bytes32) {
         return keccak256(abi.encode(
             SUBACCOUNT_ACTION_COUNT,
@@ -2111,13 +2121,15 @@ library Keys {
     }
 
     // @dev key for user's balance for a source chain, recorded under the user's virtual account
-    // @param virtualAccount the virtual account for which to retreive the user balance key
+    // @param chianId the chain id for the source chain
+    // @param account the account for which to retreive the user balance key
     // @param token the token for which to retreive the user balance key
     // @return key for a source chain balance for a given user and token
-    function sourceChainBalanceKey(address virtualAccount, address token) internal pure returns (bytes32) {
+    function sourceChainBalanceKey(uint256 chainId, address account, address token) internal pure returns (bytes32) {
         return keccak256(abi.encode(
             SOURCE_CHAIN_BALANCE,
-            virtualAccount,
+            chainId,
+            account,
             token
         ));
     }

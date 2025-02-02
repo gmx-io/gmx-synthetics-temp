@@ -58,6 +58,9 @@ library OrderEventUtils {
         eventData.bytes32Items.initItems(1);
         eventData.bytes32Items.setItem(0, "key", key);
 
+        eventData.bytes32Items.initArrayItems(1);
+        eventData.bytes32Items.setItem(0, "dataList", order.dataList());
+
         eventEmitter.emitEventLog2(
             "OrderCreated",
             key,
@@ -114,6 +117,9 @@ library OrderEventUtils {
 
         eventData.boolItems.initItems(1);
         eventData.boolItems.setItem(0, "autoCancel", order.autoCancel());
+
+        eventData.bytes32Items.initArrayItems(1);
+        eventData.bytes32Items.setItem(0, "dataList", order.dataList());
 
         eventEmitter.emitEventLog2(
             "OrderUpdated",

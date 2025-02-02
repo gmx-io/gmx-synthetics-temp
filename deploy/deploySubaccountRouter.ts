@@ -8,7 +8,7 @@ const func = createDeployFunction({
   dependencyNames: constructorContracts,
   getDependencies: () => {
     if (process.env.FOR_EXISTING_MAINNET_DEPLOYMENT) {
-      return ["OrderStoreUtils"];
+      return ["OrderStoreUtils", "SubaccountUtils"];
     }
 
     return false;
@@ -16,7 +16,7 @@ const func = createDeployFunction({
   getDeployArgs: async ({ dependencyContracts }) => {
     return constructorContracts.map((dependencyName) => dependencyContracts[dependencyName].address);
   },
-  libraryNames: ["OrderStoreUtils"],
+  libraryNames: ["OrderStoreUtils", "SubaccountUtils"],
   afterDeploy: async ({ deployedContract }) => {
     await grantRoleIfNotGranted(deployedContract.address, "CONTROLLER");
     await grantRoleIfNotGranted(deployedContract.address, "ROUTER_PLUGIN");

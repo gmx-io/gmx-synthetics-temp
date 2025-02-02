@@ -2,13 +2,13 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 
 // @title WNT
 // @dev similar implementation as WETH but since some networks
 // might have a different native token we use WNT for a more general reference name
-contract WNT is ERC20 {
-    constructor() ERC20("Wrapped Native Token", "WNT") {}
+contract WNT is ERC20Permit {
+    constructor() ERC20("Wrapped Native Token", "WNT") ERC20Permit("Wrapped Native Token") {}
 
     error TransferFailed(address account, uint256 amount);
 
