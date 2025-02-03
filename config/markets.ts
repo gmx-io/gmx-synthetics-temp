@@ -2781,8 +2781,8 @@ const config: {
 
       minCollateralFactorForOpenInterestMultiplier: exponentToFloat("2e-10"),
 
-      reserveFactor: percentageToFloat("55%"), // default is 95%
-      openInterestReserveFactor: percentageToFloat("50%"), // default is 90%
+      reserveFactor: percentageToFloat("40%"), // default is 95%
+      openInterestReserveFactor: percentageToFloat("35%"), // default is 90%
 
       maxPnlFactorForTraders: percentageToFloat("50%"), // default is 60%
 
@@ -2810,16 +2810,16 @@ const config: {
 
       minCollateralFactorForOpenInterestMultiplier: exponentToFloat("2e-10"),
 
-      reserveFactor: percentageToFloat("55%"), // default is 95%
-      openInterestReserveFactor: percentageToFloat("50%"), // default is 90%
+      reserveFactor: percentageToFloat("40%"), // default is 95%
+      openInterestReserveFactor: percentageToFloat("35%"), // default is 90%
 
       maxPnlFactorForTraders: percentageToFloat("50%"), // default is 60%
 
-      maxOpenInterest: decimalToFloat(1_000_000),
-      maxPoolUsdForDeposit: decimalToFloat(1_500_000),
+      maxOpenInterest: decimalToFloat(500_000),
+      maxPoolUsdForDeposit: decimalToFloat(750_000),
 
-      maxLongTokenPoolAmount: expandDecimals(60_000, 18), // ~2M USD (2x the max open interest)
-      maxShortTokenPoolAmount: expandDecimals(2_000_000, 6), // ~2M USD (2x the max open interest)
+      maxLongTokenPoolAmount: expandDecimals(30_000, 18), // ~1M USD (2x the max open interest)
+      maxShortTokenPoolAmount: expandDecimals(1_000_000, 6), // ~1M USD (2x the max open interest)
     },
     {
       tokens: { indexToken: "WAVAX", longToken: "WAVAX", shortToken: "USDC" },
